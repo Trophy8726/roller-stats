@@ -1,11 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { Game } from '../domain/types';
-import { useSync } from '../events/SyncContext';
+import { useBackgroundSync, usePendingTotal, useSync } from '../events/SyncContext';
 import { isValidCode, normalizeCode } from '../games/code';
 import { t } from '../i18n/fr';
 import { href, navigate } from '../router';
 import { loadTeamName, saveTeamName, todayIso } from '../settings';
 import { formatDate } from '../stats/format';
+import { SyncChip } from '../ui/SyncChip';
 
 export function Home() {
   const { games } = useSync();
@@ -18,10 +19,17 @@ export function Home() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [recent, setRecent] = useState<Game[]>([]);
+  const bg = useBackgroundSync();
+  const pending = usePendingTotal();
 
   useEffect(() => {
     games.list().then(setRecent).catch(() => setError(t.errors.server));
   }, [games]);
+
+  // Coming back from a game: refresh the backlog count (and try to send it) right away.
+  useEffect(() => {
+    void bg.run();
+  }, [bg]);
 
   async function onCreate(e: FormEvent) {
     e.preventDefault();
@@ -63,6 +71,7 @@ export function Home() {
       <header className="topbar">
         <h1>{t.appName}</h1>
         <span className="topbar__spacer" />
+        {pending > 0 && <SyncChip pending={pending} connected={false} />}
         <a className="btn" href={href({ name: 'season' })}>
           {t.nav.season}
         </a>

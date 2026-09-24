@@ -49,6 +49,50 @@ describe('EventStore', () => {
   });
 });
 
+describe('EventStore.pendingCodes', () => {
+  it('lists the games that still have pending events, and forgets them once synced', async () => {
+    const s = new EventStore(memoryKV());
+    const a = shotEv('shot_for', 'goal', { game_code: 'AAAA' });
+    const b = shotEv('shot_for', 'goal', { game_code: 'BBBB' });
+    await s.add(a);
+    await s.add(b);
+    expect((await s.pendingCodes()).sort()).toEqual(['AAAA', 'BBBB']);
+    await s.markSynced('AAAA', [{ id: a.id, deleted_at: null }]);
+    expect(await s.pendingCodes()).toEqual(['BBBB']);
+  });
+
+  it('lists a game again when a synced event is deleted', async () => {
+    const s = new EventStore(memoryKV());
+    const e = shotEv('shot_for', 'goal', { game_code: 'AAAA' });
+    await s.add(e);
+    await s.markSynced('AAAA', [{ id: e.id, deleted_at: null }]);
+    expect(await s.pendingCodes()).toEqual([]);
+    await s.softDelete('AAAA', e.id, '2026-09-24T19:00:00.000Z');
+    expect(await s.pendingCodes()).toEqual(['AAAA']);
+  });
+
+  it('survives a reload (new store, same storage)', async () => {
+    const kv = memoryKV();
+    await new EventStore(kv).add(shotEv('shot_for', 'goal', { game_code: 'AAAA' }));
+    expect(await new EventStore(kv).pendingCodes()).toEqual(['AAAA']);
+  });
+
+  it('rebuilds the index from event lists written before it existed', async () => {
+    const kv = memoryKV();
+    await kv.set('events:AAAA', [{ ...shotEv('shot_for', 'goal', { game_code: 'AAAA' }), sync: 'pending', mine: true }]);
+    await kv.set('events:BBBB', [{ ...shotEv('shot_for', 'goal', { game_code: 'BBBB' }), sync: 'synced', mine: true }]);
+    expect(await new EventStore(kv).pendingCodes()).toEqual(['AAAA']);
+  });
+
+  it('counts pending events across all games', async () => {
+    const s = new EventStore(memoryKV());
+    await s.add(shotEv('shot_for', 'goal', { game_code: 'AAAA' }));
+    await s.add(shotEv('shot_for', 'goal', { game_code: 'AAAA' }));
+    await s.add(shotEv('shot_for', 'goal', { game_code: 'BBBB' }));
+    expect(await s.pendingTotal()).toBe(3);
+  });
+});
+
 describe('mergeRemote', () => {
   it('adds events from other devices as synced and not mine', () => {
     const r = shotEv('shot_against', 'save');

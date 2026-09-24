@@ -10,6 +10,8 @@ export interface StoredEvent extends GameEvent {
 export interface KV {
   get(key: string): Promise<unknown>;
   set(key: string, value: unknown): Promise<void>;
+  /** Every key in the storage (only used once, to rebuild the pending-games index). */
+  keys?(): Promise<string[]>;
 }
 
 export function memoryKV(): KV {
@@ -19,8 +21,13 @@ export function memoryKV(): KV {
     set: async (k, v) => {
       m.set(k, structuredClone(v));
     },
+    keys: async () => [...m.keys()],
   };
 }
+
+const EVENTS_PREFIX = 'events:';
+const PENDING_INDEX = 'pending-codes';
+const hasPending = (evs: StoredEvent[]) => evs.some((e) => e.sync === 'pending');
 
 const byTime = (a: GameEvent, b: GameEvent) => Date.parse(a.recorded_at) - Date.parse(b.recorded_at);
 
@@ -41,22 +48,56 @@ export class EventStore {
   constructor(private kv: KV) {}
 
   private key(code: string) {
-    return `events:${code}`;
+    return `${EVENTS_PREFIX}${code}`;
   }
 
   async load(code: string): Promise<StoredEvent[]> {
     return ((await this.kv.get(this.key(code))) as StoredEvent[] | undefined) ?? [];
   }
 
-  /** All writes go through one queue so concurrent taps never overwrite each other. */
-  private update(code: string, fn: (evs: StoredEvent[]) => StoredEvent[]): Promise<StoredEvent[]> {
-    const next = this.chain.then(async () => {
-      const evs = fn(await this.load(code));
-      await this.kv.set(this.key(code), evs);
-      return evs;
-    });
+  /** Runs on the write queue so it never interleaves with an update. */
+  private enqueue<T>(job: () => Promise<T>): Promise<T> {
+    const next = this.chain.then(job);
     this.chain = next.catch(() => undefined);
     return next;
+  }
+
+  /** Index of game codes with pending events. Rebuilt by scanning the storage if it was never written. */
+  private async readIndex(): Promise<string[]> {
+    const idx = (await this.kv.get(PENDING_INDEX)) as string[] | undefined;
+    if (idx) return idx;
+    const codes: string[] = [];
+    for (const k of (await this.kv.keys?.()) ?? []) {
+      if (!k.startsWith(EVENTS_PREFIX)) continue;
+      const code = k.slice(EVENTS_PREFIX.length);
+      if (hasPending(await this.load(code))) codes.push(code);
+    }
+    await this.kv.set(PENDING_INDEX, codes);
+    return codes;
+  }
+
+  /** All writes go through one queue so concurrent taps never overwrite each other. */
+  private update(code: string, fn: (evs: StoredEvent[]) => StoredEvent[]): Promise<StoredEvent[]> {
+    return this.enqueue(async () => {
+      const evs = fn(await this.load(code));
+      await this.kv.set(this.key(code), evs);
+      const idx = await this.readIndex();
+      const listed = idx.includes(code);
+      if (hasPending(evs) !== listed) await this.kv.set(PENDING_INDEX, listed ? idx.filter((c) => c !== code) : [...idx, code]);
+      return evs;
+    });
+  }
+
+  /** Codes of the games that still have events to send to the server. */
+  pendingCodes(): Promise<string[]> {
+    return this.enqueue(() => this.readIndex());
+  }
+
+  /** Number of events still to send, across every game. */
+  async pendingTotal(): Promise<number> {
+    let n = 0;
+    for (const code of await this.pendingCodes()) n += (await this.load(code)).filter((e) => e.sync === 'pending').length;
+    return n;
   }
 
   add(e: GameEvent): Promise<StoredEvent[]> {

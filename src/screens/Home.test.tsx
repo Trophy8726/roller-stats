@@ -1,7 +1,7 @@
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { t } from '../i18n/fr';
-import { gameFx } from '../test/builders';
+import { gameFx, shotEv } from '../test/builders';
 import { makeDeps, renderWithSync } from '../test/fakes';
 import { Home } from './Home';
 
@@ -52,6 +52,21 @@ describe('Home', () => {
     d.fg.setFailing(true);
     renderWithSync(<Home />, d.deps);
     expect(await screen.findByText(t.errors.server)).toBeInTheDocument();
+  });
+
+  it('sends entries left pending by a closed game as soon as the connection is back, and shows the backlog', async () => {
+    const d = makeDeps({ games: [gameFx({ code: 'K7QX' })] });
+    d.fr.setOnline(false);
+    // Recorded offline on the Saisie screen, which has since been closed.
+    await d.deps.store.add(shotEv('shot_for', 'goal', { game_code: 'K7QX' }));
+    renderWithSync(<Home />, d.deps);
+    expect(await screen.findByText(t.sync.pending(1))).toBeInTheDocument();
+    d.fr.setOnline(true);
+    act(() => {
+      window.dispatchEvent(new Event('online'));
+    });
+    await waitFor(() => expect(d.fr.rows.size).toBe(1));
+    await waitFor(() => expect(screen.queryByText(t.sync.pending(1))).toBeNull());
   });
 
   it('lists recent games with links', async () => {

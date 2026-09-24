@@ -20,3 +20,22 @@ export async function flushOutbox(
   }
   return { pushed, failed: false, events: await store.load(code) };
 }
+
+export const PUSH_TIMEOUT_MS = 10_000;
+
+/** Rejects if `p` has not settled after `ms`, so a hung request cannot hold the outbox forever. */
+export function withTimeout<T>(p: Promise<T>, ms: number = PUSH_TIMEOUT_MS): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timeout')), ms);
+    p.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (err: unknown) => {
+        clearTimeout(timer);
+        reject(err instanceof Error ? err : new Error(String(err)));
+      },
+    );
+  });
+}
