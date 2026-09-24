@@ -124,6 +124,24 @@ describe('RecordScreen', () => {
     await waitFor(() => expect(rows(d)[0].deleted_at).not.toBeNull());
   });
 
+  it('keeps the current period and side when the role or side is changed mid-game', async () => {
+    const d = renderRecord();
+    fireEvent.click(await screen.findByRole('button', { name: 'P2' }));
+    fireEvent.click(screen.getByRole('button', { name: t.record.halftimeOk }));
+    fireEvent.click(screen.getByRole('button', { name: t.setup.change }));
+    // The previous choices are pre-selected.
+    expect(screen.getByRole('button', { name: t.roles.all })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: t.setup.defendLeft })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: t.roles.shots_for }));
+    fireEvent.click(screen.getByRole('button', { name: t.setup.start }));
+    expect(screen.getByRole('button', { name: 'P2' })).toHaveAttribute('aria-pressed', 'true');
+    // Still P2 with defendP1 'left': a tap near the left goal is stored near x = 1.
+    await tapRink(40, 100);
+    fireEvent.click(screen.getByRole('button', { name: t.results.goal }));
+    await waitFor(() => expect(d.fr.rows.size).toBe(1));
+    expect(rows(d)[0]).toMatchObject({ period: 2, x: 0.9, device_role: 'shots_for' });
+  });
+
   it('shows only the relevant buttons for a single-role tracker', async () => {
     renderRecord('shots_against');
     await screen.findByRole('group', { name: t.rink.label });

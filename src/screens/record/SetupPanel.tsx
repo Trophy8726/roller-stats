@@ -8,9 +8,10 @@ import type { RecordSetup } from '../../settings';
 const ROLES: Role[] = ['shots_for', 'shots_against', 'faceoffs', 'all'];
 const SIDES: Side[] = ['left', 'right'];
 
-export function SetupPanel({ game, onDone }: { game: Game; onDone: (s: RecordSetup) => void }) {
-  const [role, setRole] = useState<Role | null>(null);
-  const [side, setSide] = useState<Side | null>(null);
+/** `initial`: the setup being changed mid-game. Its role and side are pre-selected and its period is kept. */
+export function SetupPanel({ game, initial, onDone }: { game: Game; initial?: RecordSetup | null; onDone: (s: RecordSetup) => void }) {
+  const [role, setRole] = useState<Role | null>(initial?.role ?? null);
+  const [side, setSide] = useState<Side | null>(initial?.defendP1 ?? null);
   const attackRight = side ? attacksRight(side, 1) : true;
   const labels = endLabels(game.team_name, game.opponent, attackRight);
 
@@ -50,7 +51,7 @@ export function SetupPanel({ game, onDone }: { game: Game; onDone: (s: RecordSet
         className="btn btn--primary btn--big"
         disabled={!role || !side}
         onClick={() => {
-          if (role && side) onDone({ role, defendP1: side, period: 1 });
+          if (role && side) onDone({ role, defendP1: side, period: initial?.period ?? 1 });
         }}
       >
         {t.setup.start}
