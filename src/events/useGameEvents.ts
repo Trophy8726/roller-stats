@@ -21,13 +21,17 @@ export function useGameEvents(code: string): GameEventsState {
   const [connected, setConnected] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const flushing = useRef(false);
+  // Guards every async setState below: an in-flight call from a previous
+  // `code` (or from after unmount) must not overwrite another game's state.
+  const activeCode = useRef<string | null>(null);
+  const isActive = (forCode: string) => activeCode.current === forCode;
 
   const flush = useCallback(async () => {
     if (flushing.current) return;
     flushing.current = true;
     try {
       const r = await flushOutbox(store, (e) => remote.push(e), code);
-      setEvents(r.events);
+      if (isActive(code)) setEvents(r.events);
     } finally {
       flushing.current = false;
     }
@@ -36,17 +40,20 @@ export function useGameEvents(code: string): GameEventsState {
   const refetch = useCallback(async () => {
     try {
       const rows = await remote.fetchEvents(code);
-      setEvents(await store.mergeRemote(code, rows));
-      setLoadError(false);
+      const evs = await store.mergeRemote(code, rows);
+      if (isActive(code)) {
+        setEvents(evs);
+        setLoadError(false);
+      }
     } catch {
-      setLoadError(true);
+      if (isActive(code)) setLoadError(true);
     }
   }, [store, remote, code]);
 
   useEffect(() => {
-    let alive = true;
+    activeCode.current = code;
     void store.load(code).then((evs) => {
-      if (alive) setEvents(evs);
+      if (isActive(code)) setEvents(evs);
     });
     void refetch();
     void flush();
@@ -54,11 +61,11 @@ export function useGameEvents(code: string): GameEventsState {
       code,
       (e) => {
         void store.mergeRemote(code, [e]).then((evs) => {
-          if (alive) setEvents(evs);
+          if (isActive(code)) setEvents(evs);
         });
       },
       (ok) => {
-        setConnected(ok);
+        if (isActive(code)) setConnected(ok);
         if (ok) {
           void refetch();
           void flush();
@@ -72,7 +79,7 @@ export function useGameEvents(code: string): GameEventsState {
     window.addEventListener('online', onOnline);
     const timer = window.setInterval(() => void flush(), RETRY_MS);
     return () => {
-      alive = false;
+      activeCode.current = null;
       unsubscribe();
       window.removeEventListener('online', onOnline);
       window.clearInterval(timer);
@@ -82,17 +89,17 @@ export function useGameEvents(code: string): GameEventsState {
   const record = useCallback(
     (e: GameEvent) => {
       void store.add(e).then((evs) => {
-        setEvents(evs);
+        if (isActive(code)) setEvents(evs);
         void flush();
       });
     },
-    [store, flush],
+    [store, flush, code],
   );
 
   const remove = useCallback(
     (id: string) => {
       void store.softDelete(code, id, new Date().toISOString()).then((evs) => {
-        setEvents(evs);
+        if (isActive(code)) setEvents(evs);
         void flush();
       });
     },

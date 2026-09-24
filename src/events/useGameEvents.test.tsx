@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
+import type { GameEvent } from '../domain/types';
 import { shotEv } from '../test/builders';
 import { makeDeps } from '../test/fakes';
 import { SyncProvider } from './SyncContext';
@@ -59,5 +60,33 @@ describe('useGameEvents', () => {
     await waitFor(() => expect(result.current.pending).toBe(0));
     act(() => result.current.remove(e.id));
     await waitFor(() => expect(fr.rows.get(e.id)?.deleted_at).not.toBeNull());
+  });
+
+  it('ignores a stale fetch for the previous code after switching games', async () => {
+    const { deps, fr } = makeDeps();
+    let resolveStale!: (rows: GameEvent[]) => void;
+    const stale = new Promise<GameEvent[]>((resolve) => {
+      resolveStale = resolve;
+    });
+    const originalFetchEvents = fr.remote.fetchEvents.bind(fr.remote);
+    fr.remote.fetchEvents = (code: string) => (code === 'AB23' ? stale : originalFetchEvents(code));
+
+    const wrapper = ({ children }: { children: ReactNode }) => <SyncProvider deps={deps}>{children}</SyncProvider>;
+    const { result, rerender } = renderHook(({ code }) => useGameEvents(code), {
+      wrapper,
+      initialProps: { code: 'AB23' },
+    });
+
+    rerender({ code: 'CD45' });
+    await waitFor(() => expect(result.current.connected).toBe(true));
+
+    resolveStale([shotEv('shot_for', 'goal', { id: 'stale-ab23' })]);
+    // The merge always writes to local storage for AB23, whether or not the
+    // hook (now watching CD45) is still allowed to display it. Waiting on
+    // this write is a deterministic signal that the guarded setEvents call
+    // has already run (or been skipped), so the assertion below isn't racing it.
+    await waitFor(async () => expect(await deps.store.load('AB23')).toHaveLength(1));
+
+    expect(result.current.events.every((e) => e.game_code !== 'AB23')).toBe(true);
   });
 });
