@@ -36,7 +36,8 @@ export function SeasonScreen() {
     void load();
   }, [load]);
 
-  const season = useMemo(() => (data ? computeSeasonStats(data.games, data.events) : null), [data]);
+  const season = useMemo(() => (data ? computeSeasonStats(data.games, data.events, excluded) : null), [data, excluded]);
+  const includedCodes = useMemo(() => new Set(season?.rows.filter((r) => r.included).map((r) => r.game.code)), [season]);
   const toggle = (code: string) =>
     setExcluded((prev) => {
       const next = new Set(prev);
@@ -72,10 +73,23 @@ export function SeasonScreen() {
         </p>
       )}
       {!season && !error && <p className="muted">{t.errors.loading}</p>}
-      {season && data && season.games === 0 && <p className="muted">{t.season.empty}</p>}
+      {season && data && season.rows.length === 0 && <p className="muted">{t.season.empty}</p>}
 
-      {season && data && season.games > 0 && (
+      {season && data && season.rows.length > 0 && (
         <>
+          <section className="card stack">
+            <h2>{t.season.selection}</h2>
+            <p className="muted">{t.season.selectionHint}</p>
+            <div className="checks">
+              {season.rows.map(({ game, included, empty }) => (
+                <label key={game.code}>
+                  <input type="checkbox" checked={included} disabled={empty} onChange={() => toggle(game.code)} />
+                  {`${formatDate(game.game_date)} ${game.opponent}`}
+                </label>
+              ))}
+            </div>
+          </section>
+
           <div className="grid">
             <StatCard label={t.season.games} value={String(season.games)} />
             <StatCard label={t.report.ourSave} value={formatPct(season.total.ourSavePct)} />
@@ -129,8 +143,8 @@ export function SeasonScreen() {
                   </tr>
                 </thead>
                 <tbody>
-                  {season.rows.map(({ game, stats }) => (
-                    <tr key={game.code}>
+                  {season.rows.map(({ game, stats, included }) => (
+                    <tr key={game.code} className={included ? undefined : 'muted'}>
                       <td>{game.opponent}</td>
                       <td>{formatDate(game.game_date)}</td>
                       <td>{game.home ? t.season.home : t.season.away}</td>
@@ -163,19 +177,11 @@ export function SeasonScreen() {
                 ))}
               </div>
             </div>
-            <div className="checks">
-              {season.rows.map(({ game }) => (
-                <label key={game.code}>
-                  <input type="checkbox" checked={!excluded.has(game.code)} onChange={() => toggle(game.code)} />
-                  {`${formatDate(game.game_date)} ${game.opponent}`}
-                </label>
-              ))}
-            </div>
             <Rink
               attackRight
               leftLabel={t.report.us}
               rightLabel={t.report.them}
-              markers={filterShotMarkers(data.events.filter((e) => !excluded.has(e.game_code)), 'all', side)}
+              markers={filterShotMarkers(data.events.filter((e) => includedCodes.has(e.game_code)), 'all', side)}
             />
             <Legend results={SHOT_RESULTS} />
           </section>

@@ -20,10 +20,39 @@ describe('computeSeasonStats', () => {
     const s = computeSeasonStats([a, b], [
       shotEv('shot_for', 'goal', { game_code: 'AAAA' }),
       shotEv('shot_for', 'goal', { game_code: 'AAAA' }),
+      shotEv('shot_against', 'save', { game_code: 'BBBB' }),
     ]);
     expect(s.games).toBe(2);
     expect(s.total.shotsFor.goals).toBe(2);
     expect(s.avgFor.goals).toBe(1);
+  });
+
+  it('leaves out games with no live events (empty or test games) but still lists them', () => {
+    const c = gameFx({ code: 'CCCC', opponent: 'Test', game_date: '2026-09-21' });
+    const s = computeSeasonStats([a, b, c], [
+      shotEv('shot_for', 'goal', { game_code: 'AAAA' }),
+      shotEv('shot_for', 'goal', { game_code: 'AAAA' }),
+      shotEv('shot_for', 'goal', { game_code: 'CCCC', deleted_at: '2026-09-21T19:00:00Z' }),
+    ]);
+    expect(s.games).toBe(1);
+    expect(s.avgFor.goals).toBe(2);
+    expect(s.rows.map((r) => [r.game.code, r.included, r.empty])).toEqual([
+      ['BBBB', false, true],
+      ['CCCC', false, true],
+      ['AAAA', true, false],
+    ]);
+  });
+
+  it('leaves out the games the user unticked from every total', () => {
+    const s = computeSeasonStats(
+      [a, b],
+      [shotEv('shot_for', 'goal', { game_code: 'AAAA' }), shotEv('shot_for', 'save', { game_code: 'BBBB' })],
+      new Set(['AAAA']),
+    );
+    expect(s.games).toBe(1);
+    expect(s.total.shotsFor.goals).toBe(0);
+    expect(s.total.shotsFor.onGoal).toBe(1);
+    expect(s.rows.find((r) => r.game.code === 'AAAA')?.included).toBe(false);
   });
 
   it('ignores events of games not in the list', () => {

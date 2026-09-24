@@ -89,6 +89,8 @@ export const t = {
     perGame: '/ match',
     byGame: 'Match par match',
     map: 'Carte des tirs (matchs sélectionnés)',
+    selection: 'Matchs pris en compte',
+    selectionHint: 'Les matchs sans aucune saisie sont exclus. Décochez un match pour le retirer des statistiques de la saison.',
     date: 'Date',
     opponent: 'Adversaire',
     venue: 'Lieu',

@@ -4,9 +4,13 @@ import { gameFx, shotEv } from '../test/builders';
 import { makeDeps, renderWithSync } from '../test/fakes';
 import { SeasonScreen } from './SeasonScreen';
 
-function renderSeason() {
+function renderSeason(extraGames: ReturnType<typeof gameFx>[] = []) {
   const d = makeDeps({
-    games: [gameFx({ code: 'AAAA', opponent: 'Rouen', game_date: '2026-09-20' }), gameFx({ code: 'BBBB', opponent: 'Caen', game_date: '2026-09-27' })],
+    games: [
+      gameFx({ code: 'AAAA', opponent: 'Rouen', game_date: '2026-09-20' }),
+      gameFx({ code: 'BBBB', opponent: 'Caen', game_date: '2026-09-27' }),
+      ...extraGames,
+    ],
   });
   [
     shotEv('shot_for', 'goal', { game_code: 'AAAA' }),
@@ -39,5 +43,29 @@ describe('SeasonScreen', () => {
     expect(count()).toBe(3);
     fireEvent.click(screen.getByRole('checkbox', { name: /Rouen/ }));
     expect(count()).toBe(1);
+  });
+
+  const gamesCard = () => screen.getByText(t.season.games).nextElementSibling?.textContent;
+  const goalsRow = () => {
+    const totals = screen.getByRole('table', { name: t.season.totals });
+    return within(within(totals).getByRole('row', { name: new RegExp(t.report.levels.goals) }))
+      .getAllByRole('cell')
+      .map((c) => c.textContent);
+  };
+
+  it('leaves a game with no entries out of the season stats, unticked', async () => {
+    renderSeason([gameFx({ code: 'CCCC', opponent: 'Test', game_date: '2026-09-22' })]);
+    await screen.findByRole('table', { name: t.season.byGame });
+    expect(gamesCard()).toBe('2');
+    expect(goalsRow()).toEqual(['2', '1', '0', '0']);
+    expect(screen.getByRole('checkbox', { name: /Test/ })).not.toBeChecked();
+  });
+
+  it('applies the game selection to the totals and averages, not only the map', async () => {
+    renderSeason();
+    await screen.findByRole('table', { name: t.season.byGame });
+    fireEvent.click(screen.getByRole('checkbox', { name: /Rouen/ }));
+    expect(gamesCard()).toBe('1');
+    expect(goalsRow()).toEqual(['0', '0', '0', '0']);
   });
 });
