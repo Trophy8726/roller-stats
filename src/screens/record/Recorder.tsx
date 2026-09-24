@@ -173,7 +173,7 @@ export function Recorder({ game, setup, onSetupChange }: { game: Game; setup: Re
         <div className="overlay" role="dialog" aria-modal="true" aria-label={t.record.halftimeTitle}>
           <h1>{t.record.halftimeTitle}</h1>
           <Rink attackRight={attackRight} leftLabel={labels.left} rightLabel={labels.right} />
-          <button type="button" className="btn btn--big" onClick={() => setHalftime(false)}>
+          <button type="button" className="btn btn--big" autoFocus onClick={() => setHalftime(false)}>
             {t.record.halftimeOk}
           </button>
         </div>
