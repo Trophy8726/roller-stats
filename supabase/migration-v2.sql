@@ -55,7 +55,7 @@ alter table public.events add constraint event_shape check (
       (not penalty_shot and x is not null and y is not null and x between 0 and 1 and y between 0 and 1)
       or (penalty_shot and result in ('goal','save','missed') and x is null and y is null)))
   or (kind = 'faceoff' and result in ('won','lost')
-      and dot in ('center','off_top','off_bottom','def_top','def_bottom') and x is null and y is null)
+      and dot is not null and dot in ('center','off_top','off_bottom','def_top','def_bottom') and x is null and y is null)
   or (kind in ('own_goal_for','own_goal_against') and result = 'goal' and dot is null and x is null and y is null)
   or (kind in ('shootout_for','shootout_against') and result in ('goal','save','missed')
       and dot is null and x is null and y is null)
