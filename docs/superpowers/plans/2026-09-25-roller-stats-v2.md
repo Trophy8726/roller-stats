@@ -108,7 +108,7 @@ alter table public.games
   add column overtime_possible boolean not null default true;
 update public.games set venue = case when home then 'home' else 'away' end;
 
--- A v1 tab that is still open only sends `home`: keep `venue` consistent with it.
+-- Shim: a v1 tab that is still open only sends `home`: keep `venue` consistent with it.
 create function public.games_sync_venue() returns trigger language plpgsql as $$
 begin
   if new.home = false and new.venue = 'home' then new.venue := 'away'; end if;
@@ -149,7 +149,7 @@ alter table public.events add constraint events_period_check check (period in (1
 alter table public.events drop constraint event_shape;
 alter table public.events add constraint event_shape check (
   (kind in ('shot_for','shot_against') and result in ('goal','save','missed','blocked') and dot is null and (
-      (not penalty_shot and x between 0 and 1 and y between 0 and 1)
+      (not penalty_shot and x is not null and y is not null and x between 0 and 1 and y between 0 and 1)
       or (penalty_shot and result in ('goal','save','missed') and x is null and y is null)))
   or (kind = 'faceoff' and result in ('won','lost')
       and dot in ('center','off_top','off_bottom','def_top','def_bottom') and x is null and y is null)
@@ -163,6 +163,8 @@ alter table public.events add constraint event_shape check (
   or (kind = 'state_strength' and result in ('even','pp','pk') and dot is null and x is null and y is null)
 );
 
+alter table public.events add constraint events_goalie_rules check ((goalie_id is null or kind in ('shot_against','own_goal_against','shootout_against','state_our_goalie')) and not (empty_net and goalie_id is not null));
+
 -- Updates: soft delete (as in v1) and filling in a missing goalie, nothing else.
 drop policy "events soft delete" on public.events;
 grant update (deleted_at, goalie_id) on public.events to anon;
@@ -173,8 +175,9 @@ begin
   if (to_jsonb(new) - 'deleted_at' - 'goalie_id') is distinct from (to_jsonb(old) - 'deleted_at' - 'goalie_id') then
     raise exception 'events are immutable except deleted_at and goalie_id' using errcode = '42501';
   end if;
-  if new.deleted_at is distinct from old.deleted_at and (old.deleted_at is not null or new.deleted_at is null) then
-    raise exception 'an event can be deleted, never restored' using errcode = '42501';
+  if old.deleted_at is not null then
+    if new.deleted_at is null then raise exception 'an event can be deleted, never restored' using errcode = '42501'; end if;
+    new.deleted_at := old.deleted_at;
   end if;
   if new.goalie_id is distinct from old.goalie_id then
     if old.goalie_id is not null or new.goalie_id is null
@@ -248,16 +251,39 @@ check('an attached goalie cannot be replaced', !!r.error, r.error?.code);
 r = await sb.from('events').update({ goalie_id: null }).eq('id', open.id).select('id');
 check('an attached goalie cannot be removed', !!r.error, r.error?.code);
 const forShot = row({ kind: 'shot_for', x: 0.9 });
-await sb.from('events').insert(forShot);
+r = await sb.from('events').insert(forShot);
+check('insert shot for', !r.error, r.error?.message);
 r = await sb.from('events').update({ goalie_id: goalieId }).eq('id', forShot.id).select('id');
 check('no goalie on a shot for', !!r.error, r.error?.code);
 const emptyShot = row({ empty_net: true, result: 'goal' });
-await sb.from('events').insert(emptyShot);
+r = await sb.from('events').insert(emptyShot);
+check('insert empty-net shot', !r.error, r.error?.message);
 r = await sb.from('events').update({ goalie_id: goalieId }).eq('id', emptyShot.id).select('id');
 check('no goalie on an empty-net shot', !!r.error, r.error?.code);
+r = await sb.from('events').insert(row({ kind: 'state_their_net', result: 'empty', ...bare }));
+check('state_their_net accepted', !r.error, r.error?.message);
+
+const v1Event = { game_code: code, kind: 'shot_for', period: 1, x: 0.9, y: 0.5, dot: null, result: 'goal', device_role: 'all', recorded_at: new Date().toISOString(), deleted_at: null };
+r = await sb.from('events').insert(v1Event).select();
+check('v1-style event (only v1 columns) accepted with defaults', !r.error && r.data?.[0]?.goalie_id === null && r.data?.[0]?.empty_net === false && r.data?.[0]?.strength === 'even' && r.data?.[0]?.penalty_shot === false, r.error?.message);
+
+r = await sb.from('events').insert(row({ kind: 'shot_for', goalie_id: goalieId, x: 0.9 }));
+check('shot for with goalie_id rejected', !!r.error, r.error?.code);
+r = await sb.from('events').insert(row({ kind: 'shot_against', empty_net: true, goalie_id: goalieId, x: 0.1 }));
+check('empty-net shot with goalie_id rejected', !!r.error, r.error?.code);
+
+const code2 = 'Z' + Array.from({ length: 3 }, () => A[Math.floor(Math.random() * A.length)]).join('');
+r = await sb.from('games').insert({ code: code2, team_name: 'SMOKE', opponent: 'SMOKE', game_date: '2026-01-01', home: false });
+check('v1-style game insert (only home=false) gets venue away', !r.error && r.data?.venue === 'away', r.error?.message);
+
 const gone = row({});
 await sb.from('events').insert(gone);
-await sb.from('events').update({ deleted_at: new Date().toISOString() }).eq('id', gone.id);
+const t1 = new Date().toISOString();
+await sb.from('events').update({ deleted_at: t1 }).eq('id', gone.id);
+r = await sb.from('events').select('deleted_at').eq('id', gone.id).single();
+const t1Stored = r.data?.deleted_at;
+r = await sb.from('events').update({ deleted_at: new Date().toISOString() }).eq('id', gone.id).select('deleted_at');
+check('re-deleting an already deleted event is idempotent (same timestamp)', !r.error && r.data?.deleted_at === t1Stored, r.error?.message);
 r = await sb.from('events').update({ deleted_at: null }).eq('id', gone.id).select('id');
 check('a deleted event cannot be restored', !!r.error, r.error?.code);
 r = await sb.from('events').update({ empty_net: true }).eq('id', open.id).select('id');
@@ -265,7 +291,7 @@ check('empty_net cannot be edited', !!r.error, r.error?.code);
 
 console.log(
   `\nCleanup — paste in Supabase SQL Editor:\n` +
-    `delete from events where game_code='${code}'; delete from games where code='${code}'; delete from goalies where name like 'SMOKE %';`,
+    `delete from events where game_code in ('${code}','${code2}'); delete from games where code in ('${code}','${code2}'); delete from goalies where name like 'SMOKE ${tag}%';`,
 );
 ```
 (Delete the old trailing `console.log` cleanup line that this block replaces.)

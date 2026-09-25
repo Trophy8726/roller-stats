@@ -11,7 +11,7 @@ alter table public.games
   add column overtime_possible boolean not null default true;
 update public.games set venue = case when home then 'home' else 'away' end;
 
--- A v1 tab that is still open only sends `home`: keep `venue` consistent with it.
+-- Shim: a v1 tab that is still open only sends `home`: keep `venue` consistent with it.
 create function public.games_sync_venue() returns trigger language plpgsql as $$
 begin
   if new.home = false and new.venue = 'home' then new.venue := 'away'; end if;
@@ -52,7 +52,7 @@ alter table public.events add constraint events_period_check check (period in (1
 alter table public.events drop constraint event_shape;
 alter table public.events add constraint event_shape check (
   (kind in ('shot_for','shot_against') and result in ('goal','save','missed','blocked') and dot is null and (
-      (not penalty_shot and x between 0 and 1 and y between 0 and 1)
+      (not penalty_shot and x is not null and y is not null and x between 0 and 1 and y between 0 and 1)
       or (penalty_shot and result in ('goal','save','missed') and x is null and y is null)))
   or (kind = 'faceoff' and result in ('won','lost')
       and dot in ('center','off_top','off_bottom','def_top','def_bottom') and x is null and y is null)
@@ -66,6 +66,8 @@ alter table public.events add constraint event_shape check (
   or (kind = 'state_strength' and result in ('even','pp','pk') and dot is null and x is null and y is null)
 );
 
+alter table public.events add constraint events_goalie_rules check ((goalie_id is null or kind in ('shot_against','own_goal_against','shootout_against','state_our_goalie')) and not (empty_net and goalie_id is not null));
+
 -- Updates: soft delete (as in v1) and filling in a missing goalie, nothing else.
 drop policy "events soft delete" on public.events;
 grant update (deleted_at, goalie_id) on public.events to anon;
@@ -76,8 +78,9 @@ begin
   if (to_jsonb(new) - 'deleted_at' - 'goalie_id') is distinct from (to_jsonb(old) - 'deleted_at' - 'goalie_id') then
     raise exception 'events are immutable except deleted_at and goalie_id' using errcode = '42501';
   end if;
-  if new.deleted_at is distinct from old.deleted_at and (old.deleted_at is not null or new.deleted_at is null) then
-    raise exception 'an event can be deleted, never restored' using errcode = '42501';
+  if old.deleted_at is not null then
+    if new.deleted_at is null then raise exception 'an event can be deleted, never restored' using errcode = '42501'; end if;
+    new.deleted_at := old.deleted_at;
   end if;
   if new.goalie_id is distinct from old.goalie_id then
     if old.goalie_id is not null or new.goalie_id is null
