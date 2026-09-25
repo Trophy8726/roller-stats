@@ -46,6 +46,13 @@ describe('computeMatchState', () => {
     expect(s.ourGoalieId).toBe('g2');
   });
 
+  it('breaks a tie on recorded_at by id, whatever the list order', () => {
+    const first = stateEv('state_our_goalie', 'goalie', { id: 'a', goalie_id: 'g1', recorded_at: at(1) });
+    const second = stateEv('state_our_goalie', 'goalie', { id: 'b', goalie_id: 'g2', recorded_at: at(1) });
+    expect(computeMatchState([first, second]).ourGoalieId).toBe('g2');
+    expect(computeMatchState([second, first]).ourGoalieId).toBe('g2');
+  });
+
   it('tracks the opponent net and the strength independently', () => {
     const s = computeMatchState([
       stateEv('state_their_net', 'empty', { recorded_at: at(1) }),

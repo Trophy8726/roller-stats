@@ -6,8 +6,8 @@ const HEADER = [
 ];
 
 const num = (n: number | null) => (n === null ? '' : String(n).replace('.', ','));
-/** A leading ' stops Excel from running a cell as a formula (CSV injection). Coordinates are in [0, 1], never negative. */
-const defuse = (s: string) => (/^[=+\-@]/.test(s) ? `'${s}` : s);
+/** A leading ' stops Excel from running a cell as a formula (CSV injection). A leading tab or CR counts too. Coordinates are in [0, 1], never negative. */
+const defuse = (s: string) => (/^[=+\-@\t\r]/.test(s) ? `'${s}` : s);
 const esc = (raw: string) => {
   const s = defuse(raw);
   return /[;"\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;

@@ -1,5 +1,5 @@
 import { gameFx } from './test/builders';
-import { loadCachedGame, loadCachedGoalies, saveCachedGoalies,loadSetup, loadTeamName, saveCachedGame, saveSetup, saveTeamName, todayIso } from './settings';
+import { loadCachedGame, loadCachedGoalies, saveCachedGoalies, loadSetup, loadTeamName, saveCachedGame, saveSetup, saveTeamName, todayIso } from './settings';
 
 describe('settings', () => {
   beforeEach(() => localStorage.clear());

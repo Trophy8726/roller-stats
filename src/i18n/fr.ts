@@ -200,8 +200,6 @@ export const t = {
     sogAgainst: 'Tirs cadrés contre',
     savePct: 'Arrêts %',
     faceoffPct: 'Engagements %',
-    home: 'Dom.',
-    away: 'Ext.',
     refresh: 'Actualiser',
     empty: 'Aucun match enregistré.',
   },

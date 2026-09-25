@@ -44,6 +44,13 @@ describe('eventsToCsv', () => {
     expect(cell.replace(/^"/, '').startsWith(`'${opponent[0]}`)).toBe(true);
   });
 
+  it('neutralizes a cell starting with a tab or a carriage return', () => {
+    const tab = eventsToCsv([shotEv('shot_for', 'goal')], [gameFx({ code: 'AB23', opponent: '\t=1+1' })]);
+    expect(tab).toContain(";'\t=1+1;");
+    const cr = eventsToCsv([shotEv('shot_for', 'goal')], [gameFx({ code: 'AB23', opponent: '\r=1+1' })]);
+    expect(cr).toContain(";\"'\r=1+1\";");
+  });
+
   it('neutralizes a formula cell that also needs quoting', () => {
     const csv = eventsToCsv([shotEv('shot_for', 'goal')], [gameFx({ code: 'AB23', opponent: '=1;2' })]);
     expect(csv).toContain(`;"'=1;2";`);
