@@ -71,11 +71,16 @@ export function Home() {
         sheet_side: venue === 'neutral' ? sheetSide : null,
         overtime_possible: overtime,
       });
-      if (startGoalie) {
-        await store.add(makeGoalieState({ code: game.code, period: 1, role: 'all' }, startGoalie === EMPTY_NET ? null : startGoalie));
-        void bg.run();
-      }
+      // The game exists from here on: always show its code, even if the starting goalie cannot be recorded.
       setCreated(game);
+      if (startGoalie) {
+        try {
+          await store.add(makeGoalieState({ code: game.code, period: 1, role: 'all' }, startGoalie === EMPTY_NET ? null : startGoalie));
+          void bg.run();
+        } catch {
+          setError(t.home.startGoalieFailed);
+        }
+      }
     } catch {
       setError(t.errors.server);
     } finally {

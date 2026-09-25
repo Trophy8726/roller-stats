@@ -136,6 +136,38 @@ describe('Home v2', () => {
     expect((await d.deps.store.load('K7QX'))[0]).toMatchObject({ kind: 'state_our_goalie', result: 'empty', goalie_id: null });
   });
 
+  it('keeps the game and its code when only the starting goalie cannot be recorded', async () => {
+    const d = makeDeps({ goalies: [{ id: 'g1', name: 'Mallet' }] });
+    vi.spyOn(d.deps.store, 'add').mockRejectedValueOnce(new Error('disk'));
+    renderWithSync(<Home />, d.deps);
+    await fillNames();
+    await screen.findByRole('option', { name: 'Mallet' });
+    await userEvent.selectOptions(screen.getByLabelText(t.home.startGoalie), 'g1');
+    await userEvent.click(screen.getByRole('button', { name: t.home.create }));
+    expect(await screen.findByText('K7QX')).toBeInTheDocument();
+    expect(await screen.findByText(t.home.startGoalieFailed)).toBeInTheDocument();
+    expect(screen.queryByText(t.errors.server)).toBeNull();
+    expect(d.fg.games).toHaveLength(1);
+  });
+
+  it('an away game sends home: false and venue: away', async () => {
+    const d = makeDeps();
+    renderWithSync(<Home />, d.deps);
+    await fillNames();
+    await userEvent.click(screen.getByRole('button', { name: t.venues.away }));
+    await userEvent.click(screen.getByRole('button', { name: t.home.create }));
+    await screen.findByText('K7QX');
+    expect(d.fg.games.at(-1)).toMatchObject({ venue: 'away', home: false, sheet_side: null });
+  });
+
+  it('switching the competition back to Championnat ticks the overtime box again', async () => {
+    renderWithSync(<Home />, makeDeps().deps);
+    await userEvent.click(screen.getByRole('button', { name: t.competitions.playoffs }));
+    expect(screen.getByLabelText(t.home.overtimePossible)).not.toBeChecked();
+    await userEvent.click(screen.getByRole('button', { name: t.competitions.championnat }));
+    expect(screen.getByLabelText(t.home.overtimePossible)).toBeChecked();
+  });
+
   it('"Plus tard" (the default) records no starting state', async () => {
     const d = makeDeps();
     renderWithSync(<Home />, d.deps);

@@ -10,29 +10,36 @@ export function GoalieRoster({ roster }: { roster: GoaliesState }) {
   const [message, setMessage] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const explain = (e: unknown) => (e instanceof DuplicateGoalieError ? t.goalies.duplicate : t.errors.server);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (busy || !name.trim()) return;
+    setBusy(true);
     try {
       await add(name);
       setName('');
       setMessage(null);
     } catch (err) {
       setMessage(explain(err));
+    } finally {
+      setBusy(false);
     }
   }
 
   async function save(id: string) {
-    if (!draft.trim()) return;
+    if (busy || !draft.trim()) return;
+    setBusy(true);
     try {
       await rename(id, draft);
       setEditing(null);
       setMessage(null);
     } catch (err) {
       setMessage(explain(err));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -53,9 +60,17 @@ export function GoalieRoster({ roster }: { roster: GoaliesState }) {
       <form className="row" onSubmit={submit}>
         <label className="field">
           {t.goalies.nameLabel}
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} />
+          <input
+            className="input"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              setMessage(null);
+            }}
+            maxLength={60}
+          />
         </label>
-        <button className="btn btn--primary" type="submit">
+        <button className="btn btn--primary" type="submit" disabled={busy}>
           {t.goalies.add}
         </button>
       </form>
@@ -69,10 +84,17 @@ export function GoalieRoster({ roster }: { roster: GoaliesState }) {
                 <>
                   <input className="input" aria-label={t.goalies.rename} value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={60} />
                   <span className="row">
-                    <button type="button" className="btn btn--primary" onClick={() => void save(g.id)}>
+                    <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void save(g.id)}>
                       {t.goalies.save}
                     </button>
-                    <button type="button" className="btn" onClick={() => setEditing(null)}>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => {
+                        setEditing(null);
+                        setMessage(null);
+                      }}
+                    >
                       {t.goalies.cancel}
                     </button>
                   </span>
