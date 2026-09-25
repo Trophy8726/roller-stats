@@ -75,3 +75,107 @@ describe('Home', () => {
     expect(screen.getByRole('link', { name: t.nav.report })).toHaveAttribute('href', '#/rapport/K7QX');
   });
 });
+
+describe('Home v2', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    window.location.hash = '';
+  });
+
+  async function fillNames() {
+    await userEvent.type(screen.getByLabelText(t.home.team), 'Nous');
+    await userEvent.type(screen.getByLabelText(t.home.opponent), 'Rouen');
+  }
+
+  it('creates a playoffs game on neutral ground with the sheet side and the overtime box ticked by hand', async () => {
+    const d = makeDeps();
+    renderWithSync(<Home />, d.deps);
+    await fillNames();
+    expect(screen.getByLabelText(t.home.overtimePossible)).toBeChecked();
+    await userEvent.click(screen.getByRole('button', { name: t.competitions.playoffs }));
+    expect(screen.getByLabelText(t.home.overtimePossible)).not.toBeChecked();
+    await userEvent.click(screen.getByLabelText(t.home.overtimePossible));
+    expect(screen.queryByRole('button', { name: t.sheetSides.visitor })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: t.venues.neutral }));
+    await userEvent.click(screen.getByRole('button', { name: t.sheetSides.visitor }));
+    await userEvent.click(screen.getByRole('button', { name: t.home.create }));
+    await screen.findByText('K7QX');
+    expect(d.fg.games.at(-1)).toMatchObject({
+      competition: 'playoffs', venue: 'neutral', home: false, sheet_side: 'visitor', overtime_possible: true,
+    });
+  });
+
+  it('a league game at home has no sheet side and allows overtime by default', async () => {
+    const d = makeDeps();
+    renderWithSync(<Home />, d.deps);
+    await fillNames();
+    await userEvent.click(screen.getByRole('button', { name: t.home.create }));
+    await screen.findByText('K7QX');
+    expect(d.fg.games.at(-1)).toMatchObject({ competition: 'championnat', venue: 'home', home: true, sheet_side: null, overtime_possible: true });
+  });
+
+  it('records the starting goalie as a goalie change when the game is created', async () => {
+    const d = makeDeps({ goalies: [{ id: 'g1', name: 'François Mallet' }] });
+    renderWithSync(<Home />, d.deps);
+    await fillNames();
+    await screen.findByRole('option', { name: 'François Mallet' });
+    await userEvent.selectOptions(screen.getByLabelText(t.home.startGoalie), 'g1');
+    await userEvent.click(screen.getByRole('button', { name: t.home.create }));
+    await screen.findByText('K7QX');
+    const [ev] = await d.deps.store.load('K7QX');
+    expect(ev).toMatchObject({ kind: 'state_our_goalie', result: 'goalie', goalie_id: 'g1', period: 1 });
+  });
+
+  it('"Notre filet désert" records an empty net as the starting state', async () => {
+    const d = makeDeps();
+    renderWithSync(<Home />, d.deps);
+    await fillNames();
+    await userEvent.selectOptions(screen.getByLabelText(t.home.startGoalie), t.home.startGoalieEmpty);
+    await userEvent.click(screen.getByRole('button', { name: t.home.create }));
+    await screen.findByText('K7QX');
+    expect((await d.deps.store.load('K7QX'))[0]).toMatchObject({ kind: 'state_our_goalie', result: 'empty', goalie_id: null });
+  });
+
+  it('"Plus tard" (the default) records no starting state', async () => {
+    const d = makeDeps();
+    renderWithSync(<Home />, d.deps);
+    await fillNames();
+    await userEvent.click(screen.getByRole('button', { name: t.home.create }));
+    await screen.findByText('K7QX');
+    expect(await d.deps.store.load('K7QX')).toEqual([]);
+  });
+
+  it('lists the goalies, adds one and refuses a duplicate', async () => {
+    const d = makeDeps({ goalies: [{ id: 'g1', name: 'Mallet' }] });
+    renderWithSync(<Home />, d.deps);
+    await userEvent.click(screen.getByRole('button', { name: t.home.tabGoalies }));
+    expect(await screen.findByText('Mallet')).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText(t.goalies.nameLabel), 'Bernard');
+    await userEvent.click(screen.getByRole('button', { name: t.goalies.add }));
+    expect(await screen.findByText('Bernard')).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText(t.goalies.nameLabel), ' mallet');
+    await userEvent.click(screen.getByRole('button', { name: t.goalies.add }));
+    expect(await screen.findByText(t.goalies.duplicate)).toBeInTheDocument();
+    expect(d.fgo.list).toHaveLength(2);
+  });
+
+  it('corrects a goalie name', async () => {
+    const d = makeDeps({ goalies: [{ id: 'g1', name: 'Malet' }] });
+    renderWithSync(<Home />, d.deps);
+    await userEvent.click(screen.getByRole('button', { name: t.home.tabGoalies }));
+    await userEvent.click(await screen.findByRole('button', { name: t.goalies.rename }));
+    const input = screen.getByRole('textbox', { name: t.goalies.rename });
+    await userEvent.clear(input);
+    await userEvent.type(input, 'Mallet');
+    await userEvent.click(screen.getByRole('button', { name: t.goalies.save }));
+    expect(await screen.findByText('Mallet')).toBeInTheDocument();
+    expect(d.fgo.list[0].name).toBe('Mallet');
+  });
+
+  it('offers no way to delete a goalie', async () => {
+    renderWithSync(<Home />, makeDeps({ goalies: [{ id: 'g1', name: 'Mallet' }] }).deps);
+    await userEvent.click(screen.getByRole('button', { name: t.home.tabGoalies }));
+    await screen.findByText('Mallet');
+    expect(screen.queryByRole('button', { name: /suppr|supprimer|delete/i })).toBeNull();
+  });
+});
