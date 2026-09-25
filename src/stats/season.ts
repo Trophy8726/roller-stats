@@ -1,4 +1,4 @@
-import type { Game, GameEvent } from '../domain/types';
+import type { Competition, Game, GameEvent } from '../domain/types';
 import { computeGameStats, periodStats, type GameStats, type PeriodStats, type ShotLevels } from './game';
 
 export interface SeasonGameRow {
@@ -24,8 +24,16 @@ function average(l: ShotLevels, n: number): ShotLevels {
   return { attempts: l.attempts / n, unblocked: l.unblocked / n, onGoal: l.onGoal / n, goals: l.goals / n };
 }
 
-/** `excluded`: codes of games the user unticked. Games with no live events are always excluded. */
-export function computeSeasonStats(games: Game[], events: GameEvent[], excluded: ReadonlySet<string> = new Set()): SeasonStats {
+export type CompetitionFilter = Competition | 'all';
+
+/** `excluded`: codes of games the user unticked. Games with no live events are always excluded. `competition`: which games to look at (Championnat by default). */
+export function computeSeasonStats(
+  games: Game[],
+  events: GameEvent[],
+  excluded: ReadonlySet<string> = new Set(),
+  competition: CompetitionFilter = 'championnat',
+): SeasonStats {
+  const shown = competition === 'all' ? games : games.filter((g) => (g.competition ?? 'championnat') === competition);
   const byCode = new Map<string, GameEvent[]>();
   for (const e of events) {
     if (e.deleted_at) continue;
@@ -33,7 +41,7 @@ export function computeSeasonStats(games: Game[], events: GameEvent[], excluded:
     list.push(e);
     byCode.set(e.game_code, list);
   }
-  const sorted = [...games].sort((x, y) => y.game_date.localeCompare(x.game_date));
+  const sorted = [...shown].sort((x, y) => y.game_date.localeCompare(x.game_date));
   const rows = sorted.map((game) => {
     const evs = byCode.get(game.code) ?? [];
     const empty = evs.length === 0;

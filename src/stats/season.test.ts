@@ -66,3 +66,26 @@ describe('computeSeasonStats', () => {
     expect(s.avgFor).toEqual({ attempts: 0, unblocked: 0, onGoal: 0, goals: 0 });
   });
 });
+
+describe('competition filter', () => {
+  const champ = gameFx({ code: 'AAAA', game_date: '2026-09-20' });
+  const cup = gameFx({ code: 'BBBB', competition: 'coupe', game_date: '2026-09-27' });
+  const events = [
+    shotEv('shot_for', 'goal', { game_code: 'AAAA' }),
+    shotEv('shot_for', 'goal', { game_code: 'BBBB' }), shotEv('shot_for', 'goal', { game_code: 'BBBB' }),
+  ];
+  it('defaults to Championnat', () => {
+    const s = computeSeasonStats([champ, cup], events);
+    expect(s.rows.map((r) => r.game.code)).toEqual(['AAAA']);
+    expect(s.total.shotsFor.goals).toBe(1);
+  });
+  it('shows another competition, or all of them', () => {
+    expect(computeSeasonStats([champ, cup], events, new Set(), 'coupe').total.shotsFor.goals).toBe(2);
+    expect(computeSeasonStats([champ, cup], events, new Set(), 'all').games).toBe(2);
+  });
+  it('treats a game without a competition as Championnat', () => {
+    const v1 = { ...champ } as Record<string, unknown>;
+    delete v1.competition;
+    expect(computeSeasonStats([v1 as never], events, new Set(), 'championnat').games).toBe(1);
+  });
+});
