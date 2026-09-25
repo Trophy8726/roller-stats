@@ -170,6 +170,7 @@ export const t = {
     ownGoalsLine: (forUs: number, against: number) => `CSC adversaire : ${forUs} · CSC de notre équipe : ${against}`,
     penaltiesTitle: 'Tirs de pénalty',
     notesTitle: 'Notes',
+    noGoalieLines: 'Aucun tir contre enregistré.',
     assignTitle: 'Attribuer un gardien',
     assignHint: (n: number) => `${n} saisie${n > 1 ? 's' : ''} sans gardien (tirs contre, CSC ou tirs au but).`,
     assignChoose: 'Gardien',

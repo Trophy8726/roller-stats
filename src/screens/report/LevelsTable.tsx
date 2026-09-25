@@ -4,16 +4,18 @@ import type { GameStats } from '../../stats/game';
 const LEVELS = ['attempts', 'unblocked', 'onGoal', 'goals'] as const;
 
 export function LevelsTable({ stats }: { stats: GameStats }) {
-  const cols = [stats.p1, stats.p2, stats.total];
-  const heads = [t.record.period(1), t.record.period(2), t.report.total];
+  const cols = stats.hasOvertime ? [stats.p1, stats.p2, stats.p3, stats.total] : [stats.p1, stats.p2, stats.total];
+  const heads = stats.hasOvertime
+    ? [t.record.period(1), t.record.period(2), t.record.period(3), t.report.total]
+    : [t.record.period(1), t.record.period(2), t.report.total];
   return (
     <div className="table-wrap">
       <table className="table">
         <thead>
           <tr>
             <th />
-            <th colSpan={3}>{t.report.us}</th>
-            <th colSpan={3}>{t.report.them}</th>
+            <th colSpan={cols.length}>{t.report.us}</th>
+            <th colSpan={cols.length}>{t.report.them}</th>
           </tr>
           <tr>
             <th />

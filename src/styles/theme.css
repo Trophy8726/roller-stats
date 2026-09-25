@@ -89,3 +89,15 @@ h2 { font-size: 18px; font-weight: 600; margin: 0; }
 .btn[aria-pressed='true'] { background: var(--surface-dark); color: var(--text-on-dark); border-color: var(--surface-dark); }
 .misc { display: flex; flex-direction: column; gap: 24px; }
 .misc h2 { font-size: 16px; }
+@media print {
+  @page { size: A4 portrait; margin: 12mm; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { background: #fff; }
+  .no-print { display: none !important; }
+  .page { max-width: none; padding: 0; gap: 12px; }
+  .card { box-shadow: none; border: 1px solid var(--border); break-inside: avoid; }
+  .card--glass { backdrop-filter: none; }
+  .table-wrap { overflow: visible; }
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rink { max-width: 100%; }
+}

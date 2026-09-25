@@ -1,6 +1,9 @@
 import type { Game, GameEvent } from '../domain/types';
 
-const HEADER = ['match', 'date', 'adversaire', 'type', 'periode', 'x', 'y', 'point', 'resultat', 'role', 'enregistre_le'];
+const HEADER = [
+  'match', 'date', 'adversaire', 'type', 'periode', 'x', 'y', 'point', 'resultat', 'role', 'enregistre_le',
+  'gardien', 'cage_vide', 'situation', 'tir_penalty', 'note',
+];
 
 const num = (n: number | null) => (n === null ? '' : String(n).replace('.', ','));
 /** A leading ' stops Excel from running a cell as a formula (CSV injection). Coordinates are in [0, 1], never negative. */
@@ -11,13 +14,18 @@ const esc = (raw: string) => {
 };
 
 /** CSV for French Excel: UTF-8 BOM, `;` separator, decimal comma. Deleted events are excluded. */
-export function eventsToCsv(events: GameEvent[], games: Game[]): string {
+export function eventsToCsv(events: GameEvent[], games: Game[], goalieNames: ReadonlyMap<string, string> = new Map()): string {
   const byCode = new Map(games.map((g) => [g.code, g]));
   const rows = events
     .filter((e) => !e.deleted_at)
     .map((e) => {
       const g = byCode.get(e.game_code);
-      return [e.game_code, g?.game_date ?? '', g?.opponent ?? '', e.kind, String(e.period), num(e.x), num(e.y), e.dot ?? '', e.result, e.device_role, e.recorded_at]
+      return [
+        e.game_code, g?.game_date ?? '', g?.opponent ?? '', e.kind, String(e.period), num(e.x), num(e.y), e.dot ?? '', e.result,
+        e.device_role, e.recorded_at,
+        e.goalie_id ? (goalieNames.get(e.goalie_id) ?? e.goalie_id) : '',
+        e.empty_net ? 'oui' : '', e.strength ?? 'even', e.penalty_shot ? 'oui' : '', e.note ?? '',
+      ]
         .map(esc)
         .join(';');
     });
