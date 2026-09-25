@@ -25,7 +25,8 @@ export function Recorder({ game, setup, onSetupChange }: { game: Game; setup: Re
   const [mode, setMode] = useState<Mode>(() => initialMode(setup.role));
   const [tap, setTapState] = useState<Point | null>(null);
   const [dot, setDotState] = useState<DotId | null>(null);
-  const [halftime, setHalftime] = useState(false);
+  // Title of the overlay shown whenever the ends flip (P1 -> P2 and back), so a flip is never silent.
+  const [flipNotice, setFlipNotice] = useState<string | null>(null);
   // Refs make the selection single-use even if two taps land before React re-renders (double tap).
   const tapRef = useRef<Point | null>(null);
   const dotRef = useRef<DotId | null>(null);
@@ -55,7 +56,7 @@ export function Recorder({ game, setup, onSetupChange }: { game: Game; setup: Re
     if (p === setup.period) return;
     clear();
     onSetupChange({ ...setup, period: p });
-    if (p === 2) setHalftime(true);
+    setFlipNotice(p === 2 ? t.record.halftimeTitle : t.record.backToP1Title);
   }
   function pickShot(r: ShotResult) {
     const p = tapRef.current;
@@ -157,7 +158,7 @@ export function Recorder({ game, setup, onSetupChange }: { game: Game; setup: Re
                 <li key={e.id}>
                   <span>{`${t.record.period(e.period)} · ${t.modes[e.kind]} · ${t.results[e.result]}`}</span>
                   <button type="button" className="btn btn--icon" aria-label={t.record.delete} onClick={() => remove(e.id)}>
-                    ✕
+                    {t.ui.close}
                   </button>
                 </li>
               ))}
@@ -169,11 +170,11 @@ export function Recorder({ game, setup, onSetupChange }: { game: Game; setup: Re
         </aside>
       </div>
 
-      {halftime && (
-        <div className="overlay" role="dialog" aria-modal="true" aria-label={t.record.halftimeTitle}>
-          <h1>{t.record.halftimeTitle}</h1>
+      {flipNotice && (
+        <div className="overlay" role="dialog" aria-modal="true" aria-label={flipNotice}>
+          <h1>{flipNotice}</h1>
           <Rink attackRight={attackRight} leftLabel={labels.left} rightLabel={labels.right} />
-          <button type="button" className="btn btn--big" autoFocus onClick={() => setHalftime(false)}>
+          <button type="button" className="btn btn--big" autoFocus onClick={() => setFlipNotice(null)}>
             {t.record.halftimeOk}
           </button>
         </div>

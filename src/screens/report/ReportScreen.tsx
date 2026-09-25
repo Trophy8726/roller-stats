@@ -76,8 +76,8 @@ function Report({ game }: { game: Game }) {
             <span>{game.opponent}</span>
           </div>
         </section>
-        <StatCard label={t.report.ourSave} value={formatPct(stats.total.ourSavePct)} sub={`P1 ${formatPct(stats.p1.ourSavePct)} · P2 ${formatPct(stats.p2.ourSavePct)}`} />
-        <StatCard label={t.report.oppSave} value={formatPct(stats.total.oppSavePct)} sub={`P1 ${formatPct(stats.p1.oppSavePct)} · P2 ${formatPct(stats.p2.oppSavePct)}`} />
+        <StatCard label={t.report.ourSave} value={formatPct(stats.total.ourSavePct)} sub={`${t.record.period(1)} ${formatPct(stats.p1.ourSavePct)} · ${t.record.period(2)} ${formatPct(stats.p2.ourSavePct)}`} />
+        <StatCard label={t.report.oppSave} value={formatPct(stats.total.oppSavePct)} sub={`${t.record.period(1)} ${formatPct(stats.p1.oppSavePct)} · ${t.record.period(2)} ${formatPct(stats.p2.oppSavePct)}`} />
         <StatCard label={t.report.shooting} value={formatPct(stats.total.shootingPct)} />
         <StatCard label={t.report.faceoffs} value={formatPct(fo.pct)} sub={`${fo.won}/${fo.won + fo.lost}`} />
       </div>

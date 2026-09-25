@@ -124,6 +124,16 @@ describe('RecordScreen', () => {
     await waitFor(() => expect(rows(d)[0].deleted_at).not.toBeNull());
   });
 
+  it('warns when going back from P2 to P1, since the ends flip back', async () => {
+    renderRecord();
+    fireEvent.click(await screen.findByRole('button', { name: 'P2' }));
+    fireEvent.click(screen.getByRole('button', { name: t.record.halftimeOk }));
+    fireEvent.click(screen.getByRole('button', { name: 'P1' }));
+    expect(screen.getByRole('dialog', { name: t.record.backToP1Title })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: t.record.halftimeOk }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
   it('keeps the current period and side when the role or side is changed mid-game', async () => {
     const d = renderRecord();
     fireEvent.click(await screen.findByRole('button', { name: 'P2' }));

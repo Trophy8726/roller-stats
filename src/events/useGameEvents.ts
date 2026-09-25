@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GameEvent } from '../domain/types';
-import { flushOutbox } from './outbox';
+import { flushOutbox, withTimeout } from './outbox';
 import type { StoredEvent } from './store';
 import { useSync } from './SyncContext';
 
@@ -15,54 +15,80 @@ export interface GameEventsState {
   remove(id: string): void;
 }
 
+/** Events only change through add/sync/delete, so id + sync state + deletion identify a list's content. */
+function sameEvents(a: StoredEvent[], b: StoredEvent[]): boolean {
+  return a.length === b.length && a.every((e, i) => e.id === b[i].id && e.sync === b[i].sync && e.deleted_at === b[i].deleted_at);
+}
+
 export function useGameEvents(code: string): GameEventsState {
   const { store, remote } = useSync();
   const [events, setEvents] = useState<StoredEvent[]>([]);
   const [connected, setConnected] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const flushing = useRef(false);
+  const flushAgain = useRef(false);
+  const shown = useRef<StoredEvent[]>([]);
   // Guards every async setState below: an in-flight call from a previous
   // `code` (or from after unmount) must not overwrite another game's state.
   const activeCode = useRef<string | null>(null);
   const isActive = (forCode: string) => activeCode.current === forCode;
 
+  /** Shows `evs` for `forCode`, skipping the re-render when nothing changed (idle 5 s retries). */
+  const show = useCallback((forCode: string, evs: StoredEvent[]) => {
+    if (activeCode.current !== forCode || sameEvents(shown.current, evs)) return;
+    shown.current = evs;
+    setEvents(evs);
+  }, []);
+
+  const loadErrorRef = useRef(false);
+  const showLoadError = useCallback((v: boolean) => {
+    if (loadErrorRef.current === v) return;
+    loadErrorRef.current = v;
+    setLoadError(v);
+  }, []);
+
   const flush = useCallback(async () => {
-    if (flushing.current) return;
+    if (flushing.current) {
+      // Folded into the running flush: it makes one more pass when done.
+      flushAgain.current = true;
+      return;
+    }
     flushing.current = true;
     try {
-      const r = await flushOutbox(store, (e) => remote.push(e), code);
-      if (isActive(code)) setEvents(r.events);
+      for (;;) {
+        flushAgain.current = false;
+        const r = await flushOutbox(store, (e) => withTimeout(remote.push(e)), code);
+        show(code, r.events);
+        // Go again if asked during this pass, or if it succeeded but events were added meanwhile.
+        const leftover = !r.failed && r.events.some((e) => e.sync === 'pending');
+        if (!flushAgain.current && !leftover) break;
+      }
     } finally {
       flushing.current = false;
     }
-  }, [store, remote, code]);
+  }, [store, remote, code, show]);
 
   const refetch = useCallback(async () => {
     try {
       const rows = await remote.fetchEvents(code);
       const evs = await store.mergeRemote(code, rows);
-      if (isActive(code)) {
-        setEvents(evs);
-        setLoadError(false);
-      }
+      show(code, evs);
+      if (isActive(code)) showLoadError(false);
     } catch {
-      if (isActive(code)) setLoadError(true);
+      if (isActive(code)) showLoadError(true);
     }
-  }, [store, remote, code]);
+  }, [store, remote, code, show, showLoadError]);
 
   useEffect(() => {
     activeCode.current = code;
-    void store.load(code).then((evs) => {
-      if (isActive(code)) setEvents(evs);
-    });
+    shown.current = [];
+    void store.load(code).then((evs) => show(code, evs));
     void refetch();
     void flush();
     const unsubscribe = remote.subscribe(
       code,
       (e) => {
-        void store.mergeRemote(code, [e]).then((evs) => {
-          if (isActive(code)) setEvents(evs);
-        });
+        void store.mergeRemote(code, [e]).then((evs) => show(code, evs));
       },
       (ok) => {
         if (isActive(code)) setConnected(ok);
@@ -84,26 +110,26 @@ export function useGameEvents(code: string): GameEventsState {
       window.removeEventListener('online', onOnline);
       window.clearInterval(timer);
     };
-  }, [code, store, remote, flush, refetch]);
+  }, [code, store, remote, flush, refetch, show]);
 
   const record = useCallback(
     (e: GameEvent) => {
       void store.add(e).then((evs) => {
-        if (isActive(code)) setEvents(evs);
+        show(code, evs);
         void flush();
       });
     },
-    [store, flush, code],
+    [store, flush, code, show],
   );
 
   const remove = useCallback(
     (id: string) => {
       void store.softDelete(code, id, new Date().toISOString()).then((evs) => {
-        if (isActive(code)) setEvents(evs);
+        show(code, evs);
         void flush();
       });
     },
-    [store, code, flush],
+    [store, code, flush, show],
   );
 
   return { events, pending: events.filter((e) => e.sync === 'pending').length, connected, loadError, record, remove };

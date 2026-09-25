@@ -1,7 +1,7 @@
 import { toRow } from '../domain/factory';
 import type { GameEvent } from '../domain/types';
 import { shotEv } from '../test/builders';
-import { flushOutbox } from './outbox';
+import { flushOutbox, withTimeout } from './outbox';
 import { EventStore, memoryKV } from './store';
 
 function server() {
@@ -55,5 +55,15 @@ describe('flushOutbox', () => {
     await s.softDelete('AB23', e.id, '2026-09-24T19:00:00.000Z');
     await flushOutbox(s, srv.push, 'AB23');
     expect(srv.rows.get(e.id)?.deleted_at).toBe('2026-09-24T19:00:00.000Z');
+  });
+});
+
+describe('withTimeout', () => {
+  it('rejects a request that never answers, so the outbox lock is released', async () => {
+    await expect(withTimeout(new Promise(() => {}), 10)).rejects.toThrow('timeout');
+  });
+  it('passes through a result or an error that arrives in time', async () => {
+    await expect(withTimeout(Promise.resolve(3), 1000)).resolves.toBe(3);
+    await expect(withTimeout(Promise.reject(new Error('offline')), 1000)).rejects.toThrow('offline');
   });
 });

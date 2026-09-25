@@ -5,7 +5,7 @@ const LEVELS = ['attempts', 'unblocked', 'onGoal', 'goals'] as const;
 
 export function LevelsTable({ stats }: { stats: GameStats }) {
   const cols = [stats.p1, stats.p2, stats.total];
-  const heads = ['P1', 'P2', t.report.total];
+  const heads = [t.record.period(1), t.record.period(2), t.report.total];
   return (
     <div className="table-wrap">
       <table className="table">

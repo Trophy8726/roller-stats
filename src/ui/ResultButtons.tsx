@@ -14,7 +14,7 @@ export function ResultButtons<R extends EventResult>({ results, onPick, onCancel
         </button>
       ))}
       <button type="button" className="btn btn--big btn--cancel" onClick={onCancel} aria-label={t.record.cancel}>
-        ✕
+        {t.ui.close}
       </button>
     </div>
   );

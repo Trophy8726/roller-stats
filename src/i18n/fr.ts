@@ -53,6 +53,7 @@ export const t = {
     delete: 'Supprimer',
     halftimeTitle: 'Mi-temps : les équipes ont changé de côté',
     halftimeOk: 'Compris',
+    backToP1Title: 'Retour en 1re période : les équipes reprennent leur côté initial',
   },
   sync: {
     synced: 'Synchronisé',
@@ -80,6 +81,7 @@ export const t = {
     against: 'Contre',
     both: 'Les deux',
     exportCsv: 'Exporter CSV',
+    pctHeader: '%',
     partial: 'Données partielles : certaines saisies ne sont pas encore synchronisées.',
   },
   season: {
@@ -104,6 +106,7 @@ export const t = {
     refresh: 'Actualiser',
     empty: 'Aucun match enregistré.',
   },
+  ui: { close: '✕' },
   errors: {
     loading: 'Chargement…',
     unknownCode: 'Code inconnu. Vérifiez le code du match.',

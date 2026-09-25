@@ -62,6 +62,56 @@ describe('useGameEvents', () => {
     await waitFor(() => expect(fr.rows.get(e.id)?.deleted_at).not.toBeNull());
   });
 
+  it('sends an event recorded while a flush is already running, without waiting for the retry timer', async () => {
+    const { deps, fr } = makeDeps();
+    const push = fr.remote.push.bind(fr.remote);
+    let release!: () => void;
+    const gate = new Promise<void>((r) => {
+      release = r;
+    });
+    let started = 0;
+    fr.remote.push = async (e: GameEvent) => {
+      started++;
+      await gate;
+      await push(e);
+    };
+    const wrapper = ({ children }: { children: ReactNode }) => <SyncProvider deps={deps}>{children}</SyncProvider>;
+    const { result } = renderHook(() => useGameEvents('AB23'), { wrapper });
+    await waitFor(() => expect(result.current.connected).toBe(true));
+    act(() => result.current.record(shotEv('shot_for', 'goal')));
+    // The first push is in flight (held by the gate)...
+    await waitFor(() => expect(started).toBeGreaterThan(0));
+    // ...so this second flush request arrives while the lock is held and must not be dropped.
+    act(() => result.current.record(shotEv('shot_for', 'save')));
+    await waitFor(() => expect(result.current.events).toHaveLength(2));
+    release();
+    await waitFor(() => expect(result.current.pending).toBe(0));
+    expect(fr.rows.size).toBe(2);
+  });
+
+  it('does not re-render when a flush or refetch changes nothing', async () => {
+    const { deps } = makeDeps();
+    let renders = 0;
+    const wrapper = ({ children }: { children: ReactNode }) => <SyncProvider deps={deps}>{children}</SyncProvider>;
+    const { result } = renderHook(
+      () => {
+        renders++;
+        return useGameEvents('AB23');
+      },
+      { wrapper },
+    );
+    act(() => result.current.record(shotEv('shot_for', 'goal')));
+    await waitFor(() => expect(result.current.pending).toBe(0));
+    // Let every in-flight call settle.
+    await act(() => new Promise((r) => setTimeout(r, 20)));
+    const before = renders;
+    await act(async () => {
+      window.dispatchEvent(new Event('online'));
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    expect(renders).toBe(before);
+  });
+
   it('ignores a stale fetch for the previous code after switching games', async () => {
     const { deps, fr } = makeDeps();
     let resolveStale!: (rows: GameEvent[]) => void;

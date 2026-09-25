@@ -3,7 +3,12 @@ import type { Game, GameEvent } from '../domain/types';
 const HEADER = ['match', 'date', 'adversaire', 'type', 'periode', 'x', 'y', 'point', 'resultat', 'role', 'enregistre_le'];
 
 const num = (n: number | null) => (n === null ? '' : String(n).replace('.', ','));
-const esc = (s: string) => (/[;"\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+/** A leading ' stops Excel from running a cell as a formula (CSV injection). Coordinates are in [0, 1], never negative. */
+const defuse = (s: string) => (/^[=+\-@]/.test(s) ? `'${s}` : s);
+const esc = (raw: string) => {
+  const s = defuse(raw);
+  return /[;"\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+};
 
 /** CSV for French Excel: UTF-8 BOM, `;` separator, decimal comma. Deleted events are excluded. */
 export function eventsToCsv(events: GameEvent[], games: Game[]): string {
@@ -24,8 +29,12 @@ export function downloadCsv(filename: string, csv: string): void {
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
+  // Some browsers (Firefox, older Safari) ignore clicks on a link that is not in the page.
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
+  a.remove();
+  // Revoking synchronously can cancel the download before it starts.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 export function slug(s: string): string {

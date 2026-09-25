@@ -6,8 +6,8 @@ export function FaceoffTable({ stats }: { stats: GameStats }) {
   const z = stats.total.faceoffsByZone;
   const rows: [string, WinLoss][] = [
     [t.report.total, stats.total.faceoffs],
-    ['P1', stats.p1.faceoffs],
-    ['P2', stats.p2.faceoffs],
+    [t.record.period(1), stats.p1.faceoffs],
+    [t.record.period(2), stats.p2.faceoffs],
     [t.report.zones.off, z.off],
     [t.report.zones.neutral, z.neutral],
     [t.report.zones.def, z.def],
@@ -20,7 +20,7 @@ export function FaceoffTable({ stats }: { stats: GameStats }) {
             <th />
             <th>{t.report.won}</th>
             <th>{t.report.lost}</th>
-            <th>%</th>
+            <th>{t.report.pctHeader}</th>
           </tr>
         </thead>
         <tbody>

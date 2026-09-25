@@ -32,4 +32,10 @@ describe('useGame', () => {
     const { result } = run('AB23', (d) => d.fg.setFailing(true));
     await waitFor(() => expect(result.current).toEqual({ status: 'ok', game: gameFx() }));
   });
+  it('shows the cached game at once and refreshes it in the background', async () => {
+    saveCachedGame(gameFx({ opponent: 'Ancien nom' }));
+    const { result } = run('AB23');
+    expect(result.current).toEqual({ status: 'ok', game: gameFx({ opponent: 'Ancien nom' }) });
+    await waitFor(() => expect(result.current).toEqual({ status: 'ok', game: gameFx() }));
+  });
 });

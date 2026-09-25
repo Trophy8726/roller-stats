@@ -6,23 +6,36 @@ import { loadCachedGame, saveCachedGame } from '../settings';
 
 export type GameState = { status: 'loading' } | { status: 'missing' } | { status: 'error' } | { status: 'ok'; game: Game };
 
+const initialState = (code: string): GameState => {
+  const cached = loadCachedGame(code);
+  return cached ? { status: 'ok', game: cached } : { status: 'loading' };
+};
+
+/** Cache first: a game already seen on this device renders at once; the server copy refreshes it in the background. */
 export function useGame(code: string): GameState {
   const { games } = useSync();
-  const [state, setState] = useState<GameState>({ status: 'loading' });
+  const [state, setState] = useState<GameState>(() => initialState(code));
+  const [stateCode, setStateCode] = useState(code);
+  if (stateCode !== code) {
+    setStateCode(code);
+    setState(initialState(code));
+  }
   useEffect(() => {
     let alive = true;
-    setState({ status: 'loading' });
     games
       .get(code)
       .then((g) => {
         if (!alive) return;
-        if (g) saveCachedGame(g);
-        setState(g ? { status: 'ok', game: g } : { status: 'missing' });
+        if (g) {
+          saveCachedGame(g);
+          setState({ status: 'ok', game: g });
+        } else if (!loadCachedGame(code)) {
+          setState({ status: 'missing' });
+        }
       })
       .catch(() => {
         if (!alive) return;
-        const cached = loadCachedGame(code);
-        setState(cached ? { status: 'ok', game: cached } : { status: 'error' });
+        if (!loadCachedGame(code)) setState({ status: 'error' });
       });
     return () => {
       alive = false;
