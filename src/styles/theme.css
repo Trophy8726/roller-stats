@@ -89,8 +89,10 @@ h2 { font-size: 18px; font-weight: 600; margin: 0; }
 .btn[aria-pressed='true'] { background: var(--surface-dark); color: var(--text-on-dark); border-color: var(--surface-dark); }
 .misc { display: flex; flex-direction: column; gap: 24px; }
 .misc h2 { font-size: 16px; }
+.print-only { display: none; }
 @media print {
   @page { size: A4 portrait; margin: 12mm; }
+  .print-only { display: block; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   body { background: #fff; }
   .no-print { display: none !important; }

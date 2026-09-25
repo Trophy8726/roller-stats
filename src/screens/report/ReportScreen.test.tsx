@@ -164,6 +164,21 @@ describe('report v2', () => {
     expect(screen.getByText(new RegExp(`${t.competitions.coupe} · ${t.venuesShort.neutral}`))).toBeInTheDocument();
   });
 
+  it('prints the map filter under the map title only when a filter is active', async () => {
+    const { container } = renderReportWith([shotEv('shot_for', 'goal'), shotEv('shot_against', 'save', { period: 2 })]);
+    await screen.findByText('1 – 0');
+    const caption = () => container.querySelector('p.print-only');
+    expect(caption()).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: t.report.for }));
+    expect(caption()).toHaveTextContent(t.report.mapFilterCaption(t.report.allPeriods, t.report.for));
+    fireEvent.click(within(screen.getByRole('group', { name: t.record.periodLabel })).getByRole('button', { name: t.record.period(1) }));
+    expect(caption()).toHaveTextContent(t.report.mapFilterCaption(t.record.period(1), t.report.for));
+    fireEvent.click(screen.getByRole('button', { name: t.report.both }));
+    expect(caption()).toHaveTextContent(t.report.mapFilterCaption(t.record.period(1), t.report.both));
+    fireEvent.click(within(screen.getByRole('group', { name: t.record.periodLabel })).getByRole('button', { name: t.report.allPeriods }));
+    expect(caption()).toBeNull();
+  });
+
   it('exports to PDF through the print dialog and titles the page for the file name', async () => {
     const print = vi.fn();
     window.print = print;

@@ -155,6 +155,7 @@ export const t = {
     for: 'Pour',
     against: 'Contre',
     both: 'Les deux',
+    mapFilterCaption: (period: string, side: string) => `Filtre : ${period} · ${side}`,
     exportCsv: 'Exporter CSV',
     exportPdf: 'Exporter en PDF',
     pctHeader: '%',

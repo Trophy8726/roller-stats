@@ -148,6 +148,12 @@ function Report({ game }: { game: Game }) {
             ))}
           </div>
         </div>
+        {/* The filter buttons are hidden on paper: say which filter the printed map shows. */}
+        {(period !== 'all' || side !== 'both') && (
+          <p className="print-only">
+            {t.report.mapFilterCaption(period === 'all' ? t.report.allPeriods : t.record.period(period), sideLabel(side))}
+          </p>
+        )}
         <Rink attackRight leftLabel={game.team_name} rightLabel={game.opponent} markers={filterShotMarkers(events, period, side)} />
         <Legend results={SHOT_RESULTS} />
       </section>
