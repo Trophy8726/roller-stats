@@ -2,7 +2,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import type { Game, Goalie, Role } from '../../domain/types';
 import { t } from '../../i18n/fr';
 import { saveSetup, type RecordSetup } from '../../settings';
-import { gameFx } from '../../test/builders';
+import { gameFx, stateEv } from '../../test/builders';
 import { makeDeps, renderWithSync } from '../../test/fakes';
 import { RecordScreen } from './RecordScreen';
 
@@ -234,6 +234,49 @@ describe('states and the Divers tab', () => {
     fireEvent.click(screen.getByRole('button', { name: t.results.save }));
     await waitFor(async () => expect((await stored(d)).some((e) => e.kind === 'shot_for')).toBe(true));
     expect((await stored(d)).find((e) => e.kind === 'shot_for')).toMatchObject({ strength: 'pp' });
+  });
+
+  describe('strength buttons', () => {
+    // Start from PK so that both PP and Égalité differ from the current state (a button for the current state does nothing).
+    async function renderInPk() {
+      const d = makeDeps({ games: [gameFx()] });
+      const pk = stateEv('state_strength', 'pk', { strength: 'pk' });
+      d.fr.rows.set(pk.id, pk);
+      saveSetup('AB23', { role: 'all', defendP1: 'left', period: 1 });
+      renderWithSync(<RecordScreen code="AB23" />, d.deps);
+      await waitFor(() => expect(document.querySelector('.banner')).toHaveTextContent(t.strength.pk));
+      await openMisc();
+      return d;
+    }
+    const strengthBtn = (s: 'pp' | 'even') =>
+      within(screen.getByRole('group', { name: t.misc.strengthTitle })).getByRole('button', { name: t.strength[s] });
+    const strengths = async (d: ReturnType<typeof renderWith>) =>
+      (await stored(d)).filter((e) => e.kind === 'state_strength').map((e) => e.result).sort();
+
+    it('PP then Égalité in the same batch record two state events (one lockout key per button)', async () => {
+      const d = await renderInPk();
+      const pp = strengthBtn('pp');
+      const even = strengthBtn('even');
+      act(() => {
+        pp.click();
+        even.click();
+      });
+      await waitFor(async () => expect(await strengths(d)).toEqual(['even', 'pk', 'pp']));
+    });
+
+    it('a double tap on one strength button records a single event', async () => {
+      const d = await renderInPk();
+      const pp = strengthBtn('pp');
+      act(() => {
+        pp.click();
+        pp.click();
+      });
+      await waitFor(async () => expect(await strengths(d)).toEqual(['pk', 'pp']));
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 60));
+      });
+      expect(await strengths(d)).toEqual(['pk', 'pp']);
+    });
   });
 
   it('a CSC is recorded once even if the small button is double tapped, and shows in the recent list', async () => {

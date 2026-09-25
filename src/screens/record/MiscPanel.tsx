@@ -109,7 +109,7 @@ export function MiscPanel({ game, ctx, state, goalies, events, onRecord }: Props
               type="button"
               aria-pressed={state.strength === s}
               onClick={() => {
-                if (s !== state.strength) once('strength', () => onRecord(makeStrengthState(ctx, s)));
+                if (s !== state.strength) once(`strength:${s}`, () => onRecord(makeStrengthState(ctx, s)));
               }}
             >
               {t.strength[s]}

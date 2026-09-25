@@ -31,7 +31,7 @@ export function ReportScreen({ code }: { code: string }) {
 
 function Report({ game }: { game: Game }) {
   const { events, pending, connected, loadError, refresh } = useGameEvents(game.code);
-  const { goalies, names } = useGoalies();
+  const { goalies, names, loading: rosterLoading, error: rosterError } = useGoalies();
   const stats = useMemo(() => computeGameStats(events), [events]);
   const byDot = useMemo(() => faceoffsByDot(events), [events]);
   const goalieLines = useMemo(
@@ -165,6 +165,8 @@ function Report({ game }: { game: Game }) {
           unassigned={unassigned}
           pending={pending}
           goalies={goalies}
+          rosterLoading={rosterLoading}
+          rosterError={rosterError}
           assignedCount={assigned}
           onAssigned={setAssigned}
           onDone={refresh}

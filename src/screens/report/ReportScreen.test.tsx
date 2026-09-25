@@ -100,6 +100,34 @@ describe('report v2', () => {
     expect(screen.queryByRole('button', { name: t.report.assignButton })).toBeNull();
   });
 
+  describe('while the goalie roster loads or fails', () => {
+    const assignSection = async () => (await screen.findByRole('heading', { name: t.report.assignTitle })).closest('section')!;
+
+    it('does not claim there is no goalie while the roster is still loading', async () => {
+      const d = makeDeps({ games: [gameFx()] });
+      let resolve: (l: Goalie[]) => void = () => {};
+      d.deps.goalies = { ...d.deps.goalies, list: () => new Promise<Goalie[]>((r) => (resolve = r)) };
+      d.fr.rows.set('u1', shotEv('shot_against', 'goal', { id: 'u1' }));
+      renderWithSync(<ReportScreen code="AB23" />, d.deps);
+      const section = await assignSection();
+      expect(within(section).getByText(t.errors.loading)).toBeInTheDocument();
+      expect(within(section).queryByText(t.report.assignNoGoalie)).toBeNull();
+      resolve([]);
+      expect(await within(section).findByText(t.report.assignNoGoalie)).toBeInTheDocument();
+    });
+
+    it('shows the server error, not "add a goalie first", when the roster cannot be fetched', async () => {
+      const d = makeDeps({ games: [gameFx()] });
+      d.deps.goalies = { ...d.deps.goalies, list: () => Promise.reject(new Error('down')) };
+      d.fr.rows.set('u1', shotEv('shot_against', 'goal', { id: 'u1' }));
+      renderWithSync(<ReportScreen code="AB23" />, d.deps);
+      const section = await assignSection();
+      expect(await within(section).findByText(t.errors.server)).toBeInTheDocument();
+      expect(within(section).queryByText(t.report.assignNoGoalie)).toBeNull();
+      expect(within(section).queryByText(t.errors.loading)).toBeNull();
+    });
+  });
+
   it('adds own goals to the score, shows the shootout and the extras', async () => {
     renderReportWith([
       shotEv('shot_for', 'goal'), ownGoalEv('own_goal_for'), ownGoalEv('own_goal_against'),

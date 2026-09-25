@@ -10,6 +10,9 @@ interface Props {
   /** Entries of this game still waiting to be sent from this device. */
   pending: number;
   goalies: Goalie[];
+  /** The roster is still being fetched / could not be fetched: an empty list then does not mean "no goalie yet". */
+  rosterLoading: boolean;
+  rosterError: boolean;
   /** How many entries the last assignment filled (null: none done yet). */
   assignedCount: number | null;
   onAssigned: (n: number) => void;
@@ -18,12 +21,22 @@ interface Props {
 }
 
 /** "Attribuer un gardien": fills the missing goalie on this game's entries. The database only allows filling, never replacing. */
-export function AssignGoalie({ code, unassigned, pending, goalies, assignedCount, onAssigned, onDone }: Props) {
+export function AssignGoalie({ code, unassigned, pending, goalies, rosterLoading, rosterError, assignedCount, onAssigned, onDone }: Props) {
   const { remote } = useSync();
   const [goalieId, setGoalieId] = useState('');
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
-  const blocked = pending > 0 ? t.report.assignPending : goalies.length === 0 ? t.report.assignNoGoalie : null;
+  const rosterEmpty = goalies.length === 0;
+  const blocked =
+    pending > 0
+      ? t.report.assignPending
+      : rosterEmpty && rosterLoading
+        ? t.errors.loading
+        : rosterEmpty && rosterError
+          ? t.errors.server
+          : rosterEmpty
+            ? t.report.assignNoGoalie
+            : null;
 
   async function assign() {
     if (!goalieId) return;
