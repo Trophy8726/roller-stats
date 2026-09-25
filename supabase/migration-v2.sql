@@ -84,7 +84,7 @@ begin
   end if;
   if new.goalie_id is distinct from old.goalie_id then
     if old.goalie_id is not null or new.goalie_id is null
-       or old.kind not in ('shot_against','own_goal_against','shootout_against') or old.empty_net then
+       or old.kind not in ('shot_against','own_goal_against','shootout_against') or old.empty_net or old.deleted_at is not null then
       raise exception 'a goalie can only be filled in on a shot against that has none' using errcode = '42501';
     end if;
   end if;

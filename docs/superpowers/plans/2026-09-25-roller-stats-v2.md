@@ -181,7 +181,7 @@ begin
   end if;
   if new.goalie_id is distinct from old.goalie_id then
     if old.goalie_id is not null or new.goalie_id is null
-       or old.kind not in ('shot_against','own_goal_against','shootout_against') or old.empty_net then
+       or old.kind not in ('shot_against','own_goal_against','shootout_against') or old.empty_net or old.deleted_at is not null then
       raise exception 'a goalie can only be filled in on a shot against that has none' using errcode = '42501';
     end if;
   end if;
@@ -260,6 +260,12 @@ r = await sb.from('events').insert(emptyShot);
 check('insert empty-net shot', !r.error, r.error?.message);
 r = await sb.from('events').update({ goalie_id: goalieId }).eq('id', emptyShot.id).select('id');
 check('no goalie on an empty-net shot', !!r.error, r.error?.code);
+const goneShot = row({ result: 'goal' });
+r = await sb.from('events').insert(goneShot);
+check('insert shot against to soft-delete', !r.error, r.error?.message);
+await sb.from('events').update({ deleted_at: new Date().toISOString() }).eq('id', goneShot.id);
+r = await sb.from('events').update({ goalie_id: goalieId }).eq('id', goneShot.id).select('id');
+check('no goalie on a soft-deleted shot against', !!r.error, r.error?.code);
 r = await sb.from('events').insert(row({ kind: 'state_their_net', result: 'empty', ...bare }));
 check('state_their_net accepted', !r.error, r.error?.message);
 
