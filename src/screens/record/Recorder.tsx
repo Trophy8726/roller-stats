@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { makeFaceoff, makeShot } from '../../domain/factory';
-import { FACEOFF_RESULTS, SHOT_RESULTS, type DotId, type FaceoffResult, type Game, type Period, type Point, type Role, type ShotKind, type ShotResult } from '../../domain/types';
+import { FACEOFF_RESULTS, SHOT_RESULTS, type DotId, type FaceoffResult, type Game, type MarkResult, type Period, type Point, type Role, type ShotKind, type ShotResult } from '../../domain/types';
 import { useGameEvents } from '../../events/useGameEvents';
 import { t } from '../../i18n/fr';
 import { attacksRight, endLabels } from '../../rink/coords';
@@ -9,10 +9,13 @@ import { href } from '../../router';
 import type { RecordSetup } from '../../settings';
 import { ResultButtons } from '../../ui/ResultButtons';
 import { SyncChip } from '../../ui/SyncChip';
+import { describeEvent } from './describe';
 
 type Mode = ShotKind | 'faceoff';
 const MODES: Mode[] = ['shot_for', 'shot_against', 'faceoff'];
 const PERIODS: Period[] = [1, 2];
+/** Goalie names arrive with the roster (Task 7). */
+const NO_NAMES: ReadonlyMap<string, string> = new Map();
 
 export function initialMode(role: Role): Mode {
   if (role === 'shots_against') return 'shot_against';
@@ -77,7 +80,7 @@ export function Recorder({ game, setup, onSetupChange }: { game: Game; setup: Re
       ? []
       : live
           .filter((e) => e.kind === mode && e.period === setup.period && e.x !== null && e.y !== null)
-          .map((e) => ({ id: e.id, x: e.x as number, y: e.y as number, result: e.result }));
+          .map((e) => ({ id: e.id, x: e.x as number, y: e.y as number, result: e.result as MarkResult }));
   const mine = live.filter((e) => e.mine);
   const lastTen = mine.slice(-10).reverse();
 
@@ -156,7 +159,7 @@ export function Recorder({ game, setup, onSetupChange }: { game: Game; setup: Re
             <ul className="list">
               {lastTen.map((e) => (
                 <li key={e.id}>
-                  <span>{`${t.record.period(e.period)} · ${t.modes[e.kind]} · ${t.results[e.result]}`}</span>
+                  <span>{describeEvent(e, NO_NAMES)}</span>
                   <button type="button" className="btn btn--icon" aria-label={t.record.delete} onClick={() => remove(e.id)}>
                     {t.ui.close}
                   </button>

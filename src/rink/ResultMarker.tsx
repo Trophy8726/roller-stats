@@ -1,7 +1,7 @@
-import type { EventResult } from '../domain/types';
+import type { MarkResult } from '../domain/types';
 
 /** ColorBrewer Set2. The only place colors are allowed; always paired with a shape. */
-export const RESULT_COLOR: Record<EventResult, string> = {
+export const RESULT_COLOR: Record<MarkResult, string> = {
   goal: '#FC8D62',
   save: '#66C2A5',
   missed: '#8DA0CB',
@@ -23,7 +23,7 @@ export function starPoints(cx: number, cy: number, outer: number, inner: number)
 
 const xPath = (cx: number, cy: number, d: number) => `M${cx - d} ${cy - d} L${cx + d} ${cy + d} M${cx + d} ${cy - d} L${cx - d} ${cy + d}`;
 
-export function ResultMarker({ cx, cy, result, size = 1 }: { cx: number; cy: number; result: EventResult; size?: number }) {
+export function ResultMarker({ cx, cy, result, size = 1 }: { cx: number; cy: number; result: MarkResult; size?: number }) {
   const c = RESULT_COLOR[result];
   switch (result) {
     case 'goal':

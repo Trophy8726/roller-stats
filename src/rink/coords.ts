@@ -1,7 +1,8 @@
 import type { Period, Point, Side } from '../domain/types';
 
-/** True when, on this device and in this period, our team attacks toward the right of the screen. */
-export function attacksRight(defendP1: Side, period: Period): boolean {
+/** True when, on this device and in this period, our team attacks toward the right of the screen. `defendOT`: the side chosen for overtime. */
+export function attacksRight(defendP1: Side, period: Period, defendOT?: Side): boolean {
+  if (period === 3) return (defendOT ?? defendP1) === 'left';
   const p1 = defendP1 === 'left';
   return period === 1 ? p1 : !p1;
 }

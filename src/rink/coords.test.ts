@@ -40,3 +40,15 @@ describe('endLabels', () => {
     expect(endLabels('Nous', 'Rouen', false)).toEqual({ left: 'Rouen', right: 'Nous' });
   });
 });
+
+describe('attacksRight in overtime', () => {
+  it('uses the side chosen for overtime', () => {
+    expect(attacksRight('left', 3, 'left')).toBe(true);
+    expect(attacksRight('left', 3, 'right')).toBe(false);
+    expect(attacksRight('right', 3, 'left')).toBe(true);
+  });
+  it('falls back to the first-period side when none was chosen', () => {
+    expect(attacksRight('left', 3)).toBe(true);
+    expect(attacksRight('right', 3)).toBe(false);
+  });
+});

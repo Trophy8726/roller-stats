@@ -1,5 +1,5 @@
 import type { KeyboardEvent, MouseEvent } from 'react';
-import type { DotId, EventResult, Point } from '../domain/types';
+import type { DotId, MarkResult, Point } from '../domain/types';
 import { t } from '../i18n/fr';
 import { orient } from './coords';
 import { DOTS, DOT_IDS } from './dots';
@@ -12,7 +12,7 @@ export interface RinkMarker {
   id: string;
   x: number;
   y: number;
-  result: EventResult;
+  result: MarkResult;
 }
 
 export interface RinkProps {

@@ -1,8 +1,8 @@
-import type { EventResult } from '../domain/types';
+import type { MarkResult } from '../domain/types';
 import { t } from '../i18n/fr';
 import { ResultMarker } from '../rink/ResultMarker';
 
-export function ResultButtons<R extends EventResult>({ results, onPick, onCancel }: { results: readonly R[]; onPick: (r: R) => void; onCancel: () => void }) {
+export function ResultButtons<R extends MarkResult>({ results, onPick, onCancel }: { results: readonly R[]; onPick: (r: R) => void; onCancel: () => void }) {
   return (
     <div className="actionbar">
       {results.map((r) => (

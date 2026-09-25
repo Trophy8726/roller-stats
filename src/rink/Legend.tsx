@@ -1,8 +1,8 @@
-import type { EventResult } from '../domain/types';
+import type { MarkResult } from '../domain/types';
 import { t } from '../i18n/fr';
 import { ResultMarker } from './ResultMarker';
 
-export function Legend({ results }: { results: readonly EventResult[] }) {
+export function Legend({ results }: { results: readonly MarkResult[] }) {
   return (
     <div className="legend">
       {results.map((r) => (

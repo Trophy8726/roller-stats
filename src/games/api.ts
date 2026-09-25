@@ -25,7 +25,7 @@ export function supabaseGames(client: SupabaseClient, rand: () => number = Math.
       for (let attempt = 0; attempt < 5; attempt++) {
         const code = generateCode(rand);
         const { error } = await client.from('games').insert({ code, ...input });
-        if (!error) return { code, ...input };
+        if (!error) return { code, ...input } as Game; // v2 fields arrive with NewGame (Task 3)
         if (error.code !== '23505') throw new ApiError(error.message);
       }
       throw new ApiError('Impossible de générer un code unique');

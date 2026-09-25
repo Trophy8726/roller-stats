@@ -1,6 +1,7 @@
 import { render } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { toRow } from '../domain/factory';
+import { normalizeGame } from '../domain/normalize';
 import type { Game, GameEvent } from '../domain/types';
 import type { GamesApi } from '../games/api';
 import type { Remote } from '../events/remote';
@@ -55,7 +56,7 @@ export function fakeGames(initial: Game[] = []) {
   const api: GamesApi = {
     async create(input) {
       guard();
-      const g = { code: 'K7QX', ...input };
+      const g = normalizeGame({ code: 'K7QX', ...input });
       games.push(g);
       return g;
     },
