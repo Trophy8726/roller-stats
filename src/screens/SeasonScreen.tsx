@@ -71,8 +71,13 @@ export function SeasonScreen() {
         <button
           type="button"
           className="btn btn--primary"
-          disabled={!data}
-          onClick={() => data && downloadCsv('saison.csv', eventsToCsv(data.events, data.games, names))}
+          disabled={!data || !season}
+          onClick={() => {
+            // The file follows the view: the games of the chosen competition that are ticked, nothing else.
+            if (!data || !season) return;
+            const inView = data.events.filter((e) => includedCodes.has(e.game_code));
+            downloadCsv(`saison-${competition === 'all' ? 'toutes' : competition}.csv`, eventsToCsv(inView, season.rows.map((r) => r.game), names));
+          }}
         >
           {t.report.exportCsv}
         </button>
@@ -94,7 +99,9 @@ export function SeasonScreen() {
         </p>
       )}
       {!season && !error && <p className="muted">{t.errors.loading}</p>}
-      {season && data && season.rows.length === 0 && <p className="muted">{t.season.empty}</p>}
+      {season && data && season.rows.length === 0 && (
+        <p className="muted">{data.games.length === 0 ? t.season.empty : t.season.emptyCompetition}</p>
+      )}
 
       {season && data && season.rows.length > 0 && (
         <>

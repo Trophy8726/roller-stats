@@ -202,6 +202,7 @@ export const t = {
     faceoffPct: 'Engagements %',
     refresh: 'Actualiser',
     empty: 'Aucun match enregistré.',
+    emptyCompetition: 'Aucun match dans cette compétition.',
   },
   ui: { close: '✕' },
   errors: {
