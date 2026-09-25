@@ -1,4 +1,5 @@
--- Roller Stats schema. Supabase dashboard → SQL Editor → New query → paste → Run. Run once.
+-- Roller Stats schema (v1). Supabase dashboard → SQL Editor → New query → paste → Run. Run once.
+-- A database created from this file needs supabase/migration-v2.sql applied afterwards.
 create table public.games (
   code        text primary key check (code ~ '^[A-HJKMNP-Z2-9]{4}$'),
   team_name   text not null check (char_length(team_name) between 1 and 60),
