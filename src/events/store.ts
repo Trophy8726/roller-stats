@@ -1,3 +1,4 @@
+import { normalizeEvent } from '../domain/normalize';
 import type { GameEvent } from '../domain/types';
 
 export type SyncState = 'pending' | 'synced';
@@ -31,13 +32,19 @@ const hasPending = (evs: StoredEvent[]) => evs.some((e) => e.sync === 'pending')
 
 const byTime = (a: GameEvent, b: GameEvent) => Date.parse(a.recorded_at) - Date.parse(b.recorded_at);
 
-/** Merge rows from the server into the local list. Deletion is one-way: once deleted, always deleted. */
+/** Merge rows from the server into the local list. Deletion is one-way, and a goalie can only be filled in, never replaced. */
 export function mergeRemote(local: StoredEvent[], remote: GameEvent[]): StoredEvent[] {
   const byId = new Map(local.map((e) => [e.id, e]));
   for (const r of remote) {
     const l = byId.get(r.id);
-    if (!l) byId.set(r.id, { ...r, sync: 'synced', mine: false });
-    else if (r.deleted_at && !l.deleted_at) byId.set(r.id, { ...l, deleted_at: r.deleted_at });
+    if (!l) {
+      byId.set(r.id, { ...normalizeEvent(r), sync: 'synced', mine: false });
+      continue;
+    }
+    let next = l;
+    if (r.deleted_at && !l.deleted_at) next = { ...next, deleted_at: r.deleted_at };
+    if (r.goalie_id && !l.goalie_id) next = { ...next, goalie_id: r.goalie_id };
+    if (next !== l) byId.set(r.id, next);
   }
   return [...byId.values()].sort(byTime);
 }
@@ -52,7 +59,8 @@ export class EventStore {
   }
 
   async load(code: string): Promise<StoredEvent[]> {
-    return ((await this.kv.get(this.key(code))) as StoredEvent[] | undefined) ?? [];
+    const evs = ((await this.kv.get(this.key(code))) as StoredEvent[] | undefined) ?? [];
+    return evs.map(normalizeEvent);
   }
 
   /** Runs on the write queue so it never interleaves with an update. */

@@ -1,5 +1,5 @@
 import { normalizeGame } from './domain/normalize';
-import type { Game, Period, Role, Side } from './domain/types';
+import type { Game, Goalie, Period, Role, Side } from './domain/types';
 
 export interface RecordSetup {
   role: Role;
@@ -47,5 +47,7 @@ export const loadCachedGame = (code: string): Game | null => {
   return g ? normalizeGame(g) : null;
 };
 export const saveCachedGame = (g: Game): void => store.set(`game:${g.code}`, JSON.stringify(g));
+export const loadCachedGoalies = (): Goalie[] => readJson<Goalie[]>('goalies') ?? [];
+export const saveCachedGoalies = (g: Goalie[]): void => store.set('goalies', JSON.stringify(g));
 /** Local date (not UTC) as YYYY-MM-DD. */
 export const todayIso = (): string => new Date().toLocaleDateString('sv-SE');

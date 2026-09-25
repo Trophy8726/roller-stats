@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from 'react';
+import { supabaseGoalies, type GoaliesApi } from '../goalies/api';
 import { supabaseGames, type GamesApi } from '../games/api';
 import { supabase } from '../lib/supabase';
 import { createBackgroundSync, type BackgroundSync } from './backgroundSync';
@@ -10,6 +11,7 @@ export interface SyncDeps {
   store: EventStore;
   remote: Remote;
   games: GamesApi;
+  goalies: GoaliesApi;
 }
 
 const Ctx = createContext<SyncDeps | null>(null);
@@ -46,5 +48,5 @@ export function usePendingTotal(): number {
 }
 
 export function defaultSyncDeps(): SyncDeps {
-  return { store: new EventStore(idbKV()), remote: supabaseRemote(supabase), games: supabaseGames(supabase) };
+  return { store: new EventStore(idbKV()), remote: supabaseRemote(supabase), games: supabaseGames(supabase), goalies: supabaseGoalies(supabase) };
 }

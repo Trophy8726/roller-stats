@@ -38,7 +38,7 @@ export function Home() {
     setError(null);
     try {
       saveTeamName(team.trim());
-      setCreated(await games.create({ team_name: team.trim(), opponent: opponent.trim(), game_date: date, home }));
+      setCreated(await games.create({ team_name: team.trim(), opponent: opponent.trim(), game_date: date, home, venue: home ? 'home' : 'away', competition: 'championnat', sheet_side: null, overtime_possible: true }));
     } catch {
       setError(t.errors.server);
     } finally {

@@ -10,6 +10,15 @@ describe('EventStore', () => {
     expect(await s.add(e)).toEqual([{ ...e, sync: 'pending', mine: true }]);
   });
 
+  it('loads events stored by v1 with the new columns filled in', async () => {
+    const kv = memoryKV();
+    const legacy = { ...shotEv('shot_for', 'goal'), sync: 'pending', mine: true } as Record<string, unknown>;
+    for (const k of ['goalie_id', 'empty_net', 'strength', 'penalty_shot', 'note']) delete legacy[k];
+    await kv.set('events:AB23', [legacy]);
+    const [e] = await new EventStore(kv).load('AB23');
+    expect(e).toMatchObject({ goalie_id: null, empty_net: false, strength: 'even', penalty_shot: false, note: null });
+  });
+
   it('ignores the same id twice', async () => {
     const s = new EventStore(memoryKV());
     const e = shotEv('shot_for', 'goal');
@@ -111,6 +120,16 @@ describe('mergeRemote', () => {
     const e = shotEv('shot_for', 'goal');
     const [m] = mergeRemote([stored(e, { deleted_at: '2026-09-24T19:00:00Z', sync: 'pending' })], [e]);
     expect(m.deleted_at).toBe('2026-09-24T19:00:00Z');
+  });
+  it('fills in a goalie attached on the server afterwards', () => {
+    const e = shotEv('shot_against', 'goal');
+    const [m] = mergeRemote([stored(e)], [{ ...e, goalie_id: 'g1' }]);
+    expect(m.goalie_id).toBe('g1');
+  });
+  it('never replaces or removes a goalie that is already there', () => {
+    const e = shotEv('shot_against', 'goal', { goalie_id: 'g1' });
+    expect(mergeRemote([stored(e)], [{ ...e, goalie_id: 'g2' }])[0].goalie_id).toBe('g1');
+    expect(mergeRemote([stored(e)], [{ ...e, goalie_id: null }])[0].goalie_id).toBe('g1');
   });
   it('sorts by time even when timestamp formats differ', () => {
     const early = shotEv('shot_for', 'goal', { recorded_at: '2026-09-24T18:00:00+00:00' });

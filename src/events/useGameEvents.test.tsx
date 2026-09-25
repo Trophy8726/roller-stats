@@ -14,6 +14,27 @@ function setup() {
 }
 
 describe('useGameEvents', () => {
+  it('shows a goalie attached to an event afterwards', async () => {
+    const { result, fr } = setup();
+    await waitFor(() => expect(result.current.connected).toBe(true));
+    const e = shotEv('shot_against', 'goal');
+    act(() => fr.emit(e));
+    await waitFor(() => expect(result.current.events).toHaveLength(1));
+    act(() => fr.emit({ ...e, goalie_id: 'g1' }));
+    await waitFor(() => expect(result.current.events[0].goalie_id).toBe('g1'));
+  });
+
+  it('refresh pulls the server rows again', async () => {
+    const { result, fr } = setup();
+    await waitFor(() => expect(result.current.connected).toBe(true));
+    const e = shotEv('shot_against', 'goal');
+    fr.rows.set(e.id, e);
+    await act(async () => {
+      await result.current.refresh();
+    });
+    await waitFor(() => expect(result.current.events).toHaveLength(1));
+  });
+
   it('records locally, then syncs to the server', async () => {
     const { result, fr } = setup();
     act(() => result.current.record(shotEv('shot_for', 'goal')));

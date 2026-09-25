@@ -1,17 +1,19 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { toRow } from '../domain/factory';
-import type { GameEvent } from '../domain/types';
+import { AGAINST_KINDS, type GameEvent } from '../domain/types';
 
 export interface Remote {
   push(e: GameEvent): Promise<void>;
   fetchEvents(code: string): Promise<GameEvent[]>;
   fetchAllEvents(): Promise<GameEvent[]>;
   subscribe(code: string, onEvent: (e: GameEvent) => void, onStatus: (connected: boolean) => void): () => void;
+  /** Fills the goalie on this game's live shots/CSC/shootout attempts against that have none and are not on an empty net. Returns how many. */
+  assignGoalie(code: string, goalieId: string): Promise<number>;
 }
 
 /** PostgREST returns at most 1000 rows per request. */
 export const PAGE = 1000;
-const COLS = 'id,game_code,kind,period,x,y,dot,result,device_role,recorded_at,deleted_at';
+const COLS = 'id,game_code,kind,period,x,y,dot,result,device_role,recorded_at,deleted_at,goalie_id,empty_net,strength,penalty_shot,note';
 
 type Page = { data: unknown[] | null; error: { message: string } | null };
 
@@ -46,6 +48,19 @@ export function supabaseRemote(client: SupabaseClient): Remote {
       return pageAll((from) =>
         client.from('events').select(COLS).is('deleted_at', null).order('id').range(from, from + PAGE - 1),
       );
+    },
+    async assignGoalie(code, goalieId) {
+      const { data, error } = await client
+        .from('events')
+        .update({ goalie_id: goalieId })
+        .eq('game_code', code)
+        .is('goalie_id', null)
+        .eq('empty_net', false)
+        .is('deleted_at', null)
+        .in('kind', [...AGAINST_KINDS])
+        .select('id');
+      if (error) throw new Error(error.message);
+      return data?.length ?? 0;
     },
     subscribe(code, onEvent, onStatus) {
       const channel = client

@@ -1,5 +1,5 @@
 import { gameFx } from './test/builders';
-import { loadCachedGame, loadSetup, loadTeamName, saveCachedGame, saveSetup, saveTeamName, todayIso } from './settings';
+import { loadCachedGame, loadCachedGoalies, saveCachedGoalies,loadSetup, loadTeamName, saveCachedGame, saveSetup, saveTeamName, todayIso } from './settings';
 
 describe('settings', () => {
   beforeEach(() => localStorage.clear());
@@ -26,6 +26,13 @@ describe('settings', () => {
   it('normalizes a game cached by v1 (no venue, competition or overtime flag)', () => {
     localStorage.setItem('game:AB23', JSON.stringify({ code: 'AB23', team_name: 'Nous', opponent: 'Rouen', game_date: '2026-09-24', home: false }));
     expect(loadCachedGame('AB23')).toMatchObject({ venue: 'away', competition: 'championnat', sheet_side: null, overtime_possible: true });
+  });
+  it('remembers the goalie roster and survives corrupted storage', () => {
+    expect(loadCachedGoalies()).toEqual([]);
+    saveCachedGoalies([{ id: 'g1', name: 'Mallet' }]);
+    expect(loadCachedGoalies()).toEqual([{ id: 'g1', name: 'Mallet' }]);
+    localStorage.setItem('goalies', '{oops');
+    expect(loadCachedGoalies()).toEqual([]);
   });
   it('gives today as YYYY-MM-DD', () => expect(todayIso()).toMatch(/^\d{4}-\d{2}-\d{2}$/));
 });

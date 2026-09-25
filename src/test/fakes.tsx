@@ -1,9 +1,9 @@
 import { render } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { toRow } from '../domain/factory';
-import { normalizeGame } from '../domain/normalize';
-import type { Game, GameEvent } from '../domain/types';
+import { AGAINST_KINDS, type Game, type GameEvent, type Goalie } from '../domain/types';
 import type { GamesApi } from '../games/api';
+import { DuplicateGoalieError, type GoaliesApi } from '../goalies/api';
 import type { Remote } from '../events/remote';
 import { EventStore, memoryKV } from '../events/store';
 import { SyncProvider, type SyncDeps } from '../events/SyncContext';
@@ -38,6 +38,19 @@ export function fakeRemote() {
       onStatus(true);
       return () => listeners.delete(l);
     },
+    async assignGoalie(code, goalieId) {
+      guard();
+      let n = 0;
+      for (const [id, r] of rows) {
+        if (r.game_code === code && !r.goalie_id && !r.empty_net && !r.deleted_at && AGAINST_KINDS.includes(r.kind)) {
+          const next = { ...r, goalie_id: goalieId };
+          rows.set(id, next);
+          listeners.forEach((l) => l(next));
+          n++;
+        }
+      }
+      return n;
+    },
   };
   return {
     remote,
@@ -56,7 +69,7 @@ export function fakeGames(initial: Game[] = []) {
   const api: GamesApi = {
     async create(input) {
       guard();
-      const g = normalizeGame({ code: 'K7QX', ...input });
+      const g: Game = { code: 'K7QX', ...input };
       games.push(g);
       return g;
     },
@@ -72,11 +85,45 @@ export function fakeGames(initial: Game[] = []) {
   return { api, games, setFailing: (v: boolean) => (failing = v) };
 }
 
-export function makeDeps(opts: { games?: Game[] } = {}) {
+export function fakeGoalies(initial: Goalie[] = []) {
+  const list = [...initial];
+  let failing = false;
+  let n = 0;
+  const guard = () => {
+    if (failing) throw new Error('down');
+  };
+  const clash = (name: string, except?: string) =>
+    list.some((g) => g.id !== except && g.name.trim().toLowerCase() === name.trim().toLowerCase());
+  const api: GoaliesApi = {
+    async list() {
+      guard();
+      return [...list].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+    },
+    async add(name) {
+      guard();
+      if (clash(name)) throw new DuplicateGoalieError('duplicate');
+      const g = { id: `goalie-${++n}`, name: name.trim() };
+      list.push(g);
+      return { ...g };
+    },
+    async rename(id, name) {
+      guard();
+      if (clash(name, id)) throw new DuplicateGoalieError('duplicate');
+      const g = list.find((x) => x.id === id);
+      if (!g) throw new Error('unknown goalie');
+      g.name = name.trim();
+      return { ...g };
+    },
+  };
+  return { api, list, setFailing: (v: boolean) => (failing = v) };
+}
+
+export function makeDeps(opts: { games?: Game[]; goalies?: Goalie[] } = {}) {
   const fr = fakeRemote();
   const fg = fakeGames(opts.games);
-  const deps: SyncDeps = { store: new EventStore(memoryKV()), remote: fr.remote, games: fg.api };
-  return { deps, fr, fg };
+  const fgo = fakeGoalies(opts.goalies);
+  const deps: SyncDeps = { store: new EventStore(memoryKV()), remote: fr.remote, games: fg.api, goalies: fgo.api };
+  return { deps, fr, fg, fgo };
 }
 
 export function renderWithSync(ui: ReactElement, deps: SyncDeps) {

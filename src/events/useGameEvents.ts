@@ -13,11 +13,13 @@ export interface GameEventsState {
   loadError: boolean;
   record(e: GameEvent): void;
   remove(id: string): void;
+  /** Re-fetches this game's server rows and merges them. */
+  refresh(): Promise<void>;
 }
 
-/** Events only change through add/sync/delete, so id + sync state + deletion identify a list's content. */
+/** Events only change through add/sync/delete/goalie assignment, so id + sync state + deletion + goalie identify a list's content. */
 function sameEvents(a: StoredEvent[], b: StoredEvent[]): boolean {
-  return a.length === b.length && a.every((e, i) => e.id === b[i].id && e.sync === b[i].sync && e.deleted_at === b[i].deleted_at);
+  return a.length === b.length && a.every((e, i) => e.id === b[i].id && e.sync === b[i].sync && e.deleted_at === b[i].deleted_at && e.goalie_id === b[i].goalie_id);
 }
 
 export function useGameEvents(code: string): GameEventsState {
@@ -132,5 +134,5 @@ export function useGameEvents(code: string): GameEventsState {
     [store, code, flush, show],
   );
 
-  return { events, pending: events.filter((e) => e.sync === 'pending').length, connected, loadError, record, remove };
+  return { events, pending: events.filter((e) => e.sync === 'pending').length, connected, loadError, record, remove, refresh: refetch };
 }

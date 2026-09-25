@@ -45,3 +45,30 @@ describe('supabaseRemote.push', () => {
     await expect(supabaseRemote(client).push(shotEv('shot_for', 'goal'))).rejects.toThrow('Failed to fetch');
   });
 });
+
+describe('supabaseRemote.assignGoalie', () => {
+  function stub(result: { data: unknown[] | null; error: { message: string } | null }) {
+    const calls: string[] = [];
+    const q: Record<string, unknown> = {
+      update: (v: unknown) => (calls.push(`update ${JSON.stringify(v)}`), q),
+      eq: (c: string, v: unknown) => (calls.push(`eq ${c}=${v}`), q),
+      is: (c: string, v: unknown) => (calls.push(`is ${c}=${v}`), q),
+      in: (c: string, v: unknown[]) => (calls.push(`in ${c}=${v.join(',')}`), q),
+      select: async () => result,
+    };
+    return { calls, client: { from: () => q } as unknown as SupabaseClient };
+  }
+
+  it("fills the goalie on this game's live shots against that have none, and returns how many", async () => {
+    const { calls, client } = stub({ data: [{ id: 'a' }, { id: 'b' }], error: null });
+    expect(await supabaseRemote(client).assignGoalie('AB23', 'g1')).toBe(2);
+    expect(calls).toEqual([
+      'update {"goalie_id":"g1"}', 'eq game_code=AB23', 'is goalie_id=null', 'eq empty_net=false', 'is deleted_at=null',
+      'in kind=shot_against,own_goal_against,shootout_against',
+    ]);
+  });
+  it('throws on a server error', async () => {
+    const { client } = stub({ data: null, error: { message: 'denied' } });
+    await expect(supabaseRemote(client).assignGoalie('AB23', 'g1')).rejects.toThrow('denied');
+  });
+});

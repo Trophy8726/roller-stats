@@ -16,7 +16,10 @@ function fakeClient(results: InsertResult[]) {
   return { client: client as unknown as SupabaseClient, inserted };
 }
 
-const input = { team_name: 'Nous', opponent: 'Rouen', game_date: '2026-09-24', home: true };
+const input = {
+  team_name: 'Nous', opponent: 'Rouen', game_date: '2026-09-24', home: true,
+  venue: 'home' as const, competition: 'coupe' as const, sheet_side: null, overtime_possible: true,
+};
 
 describe('supabaseGames.create', () => {
   it('retries with a new code when the code already exists', async () => {
@@ -30,5 +33,13 @@ describe('supabaseGames.create', () => {
   it('throws on any other error', async () => {
     const { client } = fakeClient([{ error: { code: '42501', message: 'denied' } }]);
     await expect(supabaseGames(client).create(input)).rejects.toThrow('denied');
+  });
+});
+
+describe('supabaseGames.get', () => {
+  it('fills the v2 fields of a row saved by v1', async () => {
+    const row = { code: 'AB23', team_name: 'Nous', opponent: 'Rouen', game_date: '2026-09-24', home: false };
+    const client = { from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: row, error: null }) }) }) }) } as unknown as SupabaseClient;
+    expect(await supabaseGames(client).get('AB23')).toMatchObject({ venue: 'away', competition: 'championnat', overtime_possible: true });
   });
 });
