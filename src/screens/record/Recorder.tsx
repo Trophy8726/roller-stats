@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { makeFaceoff, makeShot } from '../../domain/factory';
 import { computeMatchState } from '../../domain/matchState';
 import {
@@ -31,7 +31,7 @@ export function initialMode(role: Role): Mode {
 
 export function Recorder({ game, setup, onSetupChange }: { game: Game; setup: RecordSetup; onSetupChange: (s: RecordSetup | null) => void }) {
   const { events, pending, connected, record, remove } = useGameEvents(game.code);
-  const { goalies, names } = useGoalies();
+  const { goalies, names, reload } = useGoalies();
   const [mode, setMode] = useState<Mode>(() => initialMode(setup.role));
   const [tap, setTapState] = useState<Point | null>(null);
   const [dot, setDotState] = useState<DotId | null>(null);
@@ -56,6 +56,14 @@ export function Recorder({ game, setup, onSetupChange }: { game: Game; setup: Re
   };
 
   const matchState = useMemo(() => computeMatchState(events), [events]);
+  // Another tablet picked a goalie this device has never heard of (added after our roster was loaded): fetch the roster once.
+  // Keyed on the id and on whether it is known, so a goalie that stays unknown cannot cause a reload loop.
+  const stateGoalieId = matchState.ourGoalieId;
+  const stateGoalieKnown = stateGoalieId !== null && names.has(stateGoalieId);
+  useEffect(() => {
+    if (stateGoalieId && !stateGoalieKnown) void reload();
+  }, [stateGoalieId, stateGoalieKnown, reload]);
+
   const periods: Period[] = game.overtime_possible ? [1, 2, 3] : [1, 2];
   const modes: Mode[] = setup.role === 'all' ? ALL_MODES : [initialMode(setup.role), 'misc'];
   const attackRight = attacksRight(setup.defendP1, setup.period, setup.defendOT);

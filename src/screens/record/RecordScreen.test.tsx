@@ -236,6 +236,17 @@ describe('states and the Divers tab', () => {
     expect((await stored(d)).find((e) => e.kind === 'shot_for')).toMatchObject({ strength: 'pp' });
   });
 
+  it('refreshes the goalie roster when another tablet selects a goalie this device does not know yet', async () => {
+    const d = renderWith();
+    expect(await screen.findByText(t.state.goalieUnset)).toBeInTheDocument();
+    // The goalie was added on another device after this one loaded its roster.
+    d.fgo.list.push({ id: 'g9', name: 'Zoé Nouvelle' });
+    act(() => {
+      d.fr.emit(stateEv('state_our_goalie', 'goalie', { goalie_id: 'g9' }));
+    });
+    expect(await screen.findByText(t.state.goalie('Zoé Nouvelle'))).toBeInTheDocument();
+  });
+
   describe('strength buttons', () => {
     // Start from PK so that both PP and Égalité differ from the current state (a button for the current state does nothing).
     async function renderInPk() {
