@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { t } from '../i18n/fr';
-import { gameFx, shotEv } from '../test/builders';
+import { gameFx, shotEv, stateEv } from '../test/builders';
 import { makeDeps, renderWithSync } from '../test/fakes';
 import { SeasonScreen } from './SeasonScreen';
 
@@ -109,6 +109,27 @@ describe('season v2', () => {
     expect(within(goalies()).queryByRole('row', { name: /Bernard/ })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: t.season.allCompetitions }));
     expect(await within(goalies()).findByRole('row', { name: /Bernard/ })).toBeInTheDocument();
+  });
+
+  it('a game that only has a goalie state gives its goalie no game played', async () => {
+    const d = makeDeps({
+      games: [
+        gameFx({ code: 'AAAA', opponent: 'Rouen', game_date: '2026-09-20' }),
+        gameFx({ code: 'CCCC', opponent: 'Test', game_date: '2026-09-22' }),
+      ],
+      goalies: [{ id: 'g1', name: 'François Mallet' }, { id: 'g2', name: 'Bernard' }],
+    });
+    [
+      shotEv('shot_against', 'save', { game_code: 'AAAA', goalie_id: 'g1' }),
+      stateEv('state_our_goalie', 'goalie', { game_code: 'AAAA', goalie_id: 'g1' }),
+      stateEv('state_our_goalie', 'goalie', { game_code: 'CCCC', goalie_id: 'g2' }),
+    ].forEach((e) => d.fr.rows.set(e.id, e));
+    renderWithSync(<SeasonScreen />, d.deps);
+    const table = await screen.findByRole('table', { name: t.season.goalies });
+    expect(await within(table).findByRole('row', { name: /François Mallet/ })).toBeInTheDocument();
+    expect(within(table).queryByRole('row', { name: /Bernard/ })).toBeNull();
+    expect(screen.getByRole('checkbox', { name: /Test/ })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /Test/ })).toBeDisabled();
   });
 
   it('an unticked game leaves the goalie table too', async () => {

@@ -1,4 +1,4 @@
-import { gameFx, shotEv } from '../test/builders';
+import { gameFx, noteEv, shotEv, stateEv } from '../test/builders';
 import { computeSeasonStats } from './season';
 
 const a = gameFx({ code: 'AAAA', opponent: 'Rouen', game_date: '2026-09-20' });
@@ -41,6 +41,32 @@ describe('computeSeasonStats', () => {
       ['CCCC', false, true],
       ['AAAA', true, false],
     ]);
+  });
+
+  it('counts a game with only state events (or only a note) as empty: home stores a goalie state at creation', () => {
+    const c = gameFx({ code: 'CCCC', opponent: 'Test', game_date: '2026-09-21' });
+    const d = gameFx({ code: 'DDDD', opponent: 'Notes', game_date: '2026-09-22' });
+    const s = computeSeasonStats([a, c, d], [
+      shotEv('shot_for', 'goal', { game_code: 'AAAA' }),
+      stateEv('state_our_goalie', 'goalie', { game_code: 'CCCC', goalie_id: 'g1' }),
+      stateEv('state_strength', 'pp', { game_code: 'CCCC' }),
+      noteEv('essai', { game_code: 'DDDD' }),
+    ]);
+    expect(s.games).toBe(1);
+    expect(s.avgFor.goals).toBe(1);
+    expect(s.rows.map((r) => [r.game.code, r.included, r.empty])).toEqual([
+      ['DDDD', false, true],
+      ['CCCC', false, true],
+      ['AAAA', true, false],
+    ]);
+  });
+
+  it('a game with a state event and a real shot is not empty', () => {
+    const s = computeSeasonStats([a], [
+      stateEv('state_our_goalie', 'goalie', { game_code: 'AAAA', goalie_id: 'g1' }),
+      shotEv('shot_against', 'save', { game_code: 'AAAA', goalie_id: 'g1' }),
+    ]);
+    expect(s.rows[0]).toMatchObject({ empty: false, included: true });
   });
 
   it('leaves out the games the user unticked from every total', () => {

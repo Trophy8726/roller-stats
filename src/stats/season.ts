@@ -4,7 +4,7 @@ import { computeGameStats, periodStats, type GameStats, type PeriodStats, type S
 export interface SeasonGameRow {
   game: Game;
   stats: GameStats;
-  /** No live (non-deleted) events: an empty or test game, always left out of the season stats. */
+  /** No live entry other than state changes and notes: an empty or test game, always left out of the season stats. */
   empty: boolean;
   /** Counted in the season totals, averages and combined map. */
   included: boolean;
@@ -23,6 +23,9 @@ function average(l: ShotLevels, n: number): ShotLevels {
   if (n === 0) return { attempts: 0, unblocked: 0, onGoal: 0, goals: 0 };
   return { attempts: l.attempts / n, unblocked: l.unblocked / n, onGoal: l.onGoal / n, goals: l.goals / n };
 }
+
+/** Home stores a goalie state when a game is created, and a note is not play: neither makes a game "played". */
+const isPlay = (e: GameEvent) => e.kind !== 'note' && !e.kind.startsWith('state_');
 
 export type CompetitionFilter = Competition | 'all';
 
@@ -44,7 +47,7 @@ export function computeSeasonStats(
   const sorted = [...shown].sort((x, y) => y.game_date.localeCompare(x.game_date));
   const rows = sorted.map((game) => {
     const evs = byCode.get(game.code) ?? [];
-    const empty = evs.length === 0;
+    const empty = !evs.some(isPlay);
     return { game, stats: computeGameStats(evs), empty, included: !empty && !excluded.has(game.code) };
   });
   const included = rows.filter((r) => r.included);
