@@ -8,9 +8,14 @@ import { Rink } from '../rink/Rink';
 import { href } from '../router';
 import { downloadCsv, eventsToCsv } from '../stats/csv';
 import { formatDate, formatNumber, formatPct } from '../stats/format';
-import { computeSeasonStats } from '../stats/season';
+import { computeGoalieStats } from '../stats/goalies';
+import { computeSeasonStats, type CompetitionFilter } from '../stats/season';
 import { StatCard } from '../ui/StatCard';
+import { useGoalies } from '../goalies/useGoalies';
+import { GoalieTable } from './report/GoalieTable';
 
+const COMPETITION_FILTERS: CompetitionFilter[] = ['championnat', 'coupe', 'playoffs', 'all'];
+const competitionLabel = (c: CompetitionFilter) => (c === 'all' ? t.season.allCompetitions : t.competitions[c]);
 const LEVELS = ['attempts', 'unblocked', 'onGoal', 'goals'] as const;
 const SIDE_FILTERS: SideFilter[] = ['both', 'for', 'against'];
 const sideLabel = (s: SideFilter) => (s === 'both' ? t.report.both : s === 'for' ? t.report.for : t.report.against);
@@ -36,8 +41,14 @@ export function SeasonScreen() {
     void load();
   }, [load]);
 
-  const season = useMemo(() => (data ? computeSeasonStats(data.games, data.events, excluded) : null), [data, excluded]);
+  const { names } = useGoalies();
+  const [competition, setCompetition] = useState<CompetitionFilter>('championnat');
+  const season = useMemo(() => (data ? computeSeasonStats(data.games, data.events, excluded, competition) : null), [data, excluded, competition]);
   const includedCodes = useMemo(() => new Set(season?.rows.filter((r) => r.included).map((r) => r.game.code)), [season]);
+  const goalieLines = useMemo(
+    () => (data ? computeGoalieStats(data.events.filter((e) => includedCodes.has(e.game_code)), names, { unset: t.goalies.unset, unknown: t.goalies.unknown }) : []),
+    [data, includedCodes, names],
+  );
   const toggle = (code: string) =>
     setExcluded((prev) => {
       const next = new Set(prev);
@@ -61,11 +72,21 @@ export function SeasonScreen() {
           type="button"
           className="btn btn--primary"
           disabled={!data}
-          onClick={() => data && downloadCsv('saison.csv', eventsToCsv(data.events, data.games))}
+          onClick={() => data && downloadCsv('saison.csv', eventsToCsv(data.events, data.games, names))}
         >
           {t.report.exportCsv}
         </button>
       </header>
+
+      {data && (
+        <div className="seg" role="group" aria-label={t.season.competitionFilter}>
+          {COMPETITION_FILTERS.map((c) => (
+            <button key={c} type="button" aria-pressed={competition === c} onClick={() => setCompetition(c)}>
+              {competitionLabel(c)}
+            </button>
+          ))}
+        </div>
+      )}
 
       {error && (
         <p className="notice" role="alert">
@@ -126,6 +147,11 @@ export function SeasonScreen() {
           </section>
 
           <section className="card stack">
+            <h2>{t.season.goalies}</h2>
+            <GoalieTable lines={goalieLines} label={t.season.goalies} showGames />
+          </section>
+
+          <section className="card stack">
             <h2>{t.season.byGame}</h2>
             <div className="table-wrap">
               <table className="table" aria-label={t.season.byGame}>
@@ -134,6 +160,7 @@ export function SeasonScreen() {
                     <th>{t.season.opponent}</th>
                     <th>{t.season.date}</th>
                     <th>{t.season.venue}</th>
+                    <th>{t.season.competition}</th>
                     <th>{t.season.score}</th>
                     <th>{t.season.sogFor}</th>
                     <th>{t.season.sogAgainst}</th>
@@ -147,7 +174,8 @@ export function SeasonScreen() {
                     <tr key={game.code} className={included ? undefined : 'muted'}>
                       <td>{game.opponent}</td>
                       <td>{formatDate(game.game_date)}</td>
-                      <td>{game.home ? t.season.home : t.season.away}</td>
+                      <td>{t.venuesShort[game.venue]}</td>
+                      <td>{t.competitions[game.competition]}</td>
                       <td>{`${stats.score.us} – ${stats.score.them}`}</td>
                       <td>{stats.total.shotsFor.onGoal}</td>
                       <td>{stats.total.shotsAgainst.onGoal}</td>

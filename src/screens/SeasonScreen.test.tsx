@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { t } from '../i18n/fr';
 import { gameFx, shotEv } from '../test/builders';
 import { makeDeps, renderWithSync } from '../test/fakes';
@@ -45,7 +45,7 @@ describe('SeasonScreen', () => {
     expect(count()).toBe(1);
   });
 
-  const gamesCard = () => screen.getByText(t.season.games).nextElementSibling?.textContent;
+  const gamesCard = () => screen.getByText(t.season.games, { selector: 'span' }).nextElementSibling?.textContent;
   const goalsRow = () => {
     const totals = screen.getByRole('table', { name: t.season.totals });
     return within(within(totals).getByRole('row', { name: new RegExp(t.report.levels.goals) }))
@@ -67,5 +67,54 @@ describe('SeasonScreen', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: /Rouen/ }));
     expect(gamesCard()).toBe('1');
     expect(goalsRow()).toEqual(['0', '0', '0', '0']);
+  });
+});
+
+describe('season v2', () => {
+  function renderMixed() {
+    const d = makeDeps({
+      games: [
+        gameFx({ code: 'AAAA', opponent: 'Rouen', game_date: '2026-09-20' }),
+        gameFx({ code: 'BBBB', opponent: 'Caen', competition: 'coupe', game_date: '2026-09-27' }),
+      ],
+      goalies: [{ id: 'g1', name: 'François Mallet' }, { id: 'g2', name: 'Bernard' }],
+    });
+    [
+      shotEv('shot_against', 'save', { game_code: 'AAAA', goalie_id: 'g1' }),
+      shotEv('shot_against', 'goal', { game_code: 'AAAA', goalie_id: 'g1' }),
+      shotEv('shot_against', 'save', { game_code: 'BBBB', goalie_id: 'g2' }),
+    ].forEach((e) => d.fr.rows.set(e.id, e));
+    return renderWithSync(<SeasonScreen />, d.deps);
+  }
+
+  it('shows Championnat by default and switches competition', async () => {
+    renderMixed();
+    const byGame = () => screen.getByRole('table', { name: t.season.byGame });
+    await screen.findByRole('table', { name: t.season.byGame });
+    expect(within(byGame()).getByText('Rouen')).toBeInTheDocument();
+    expect(within(byGame()).queryByText('Caen')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: t.competitions.coupe }));
+    expect(await within(byGame()).findByText('Caen')).toBeInTheDocument();
+    expect(within(byGame()).queryByText('Rouen')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: t.season.allCompetitions }));
+    expect(await within(byGame()).findByText('Rouen')).toBeInTheDocument();
+    expect(within(byGame()).getByText('Caen')).toBeInTheDocument();
+  });
+
+  it('lists the goalies of the games in view, per competition', async () => {
+    renderMixed();
+    const goalies = () => screen.getByRole('table', { name: t.season.goalies });
+    const row = await within(await screen.findByRole('table', { name: t.season.goalies })).findByRole('row', { name: /François Mallet/ });
+    expect(within(row).getAllByRole('cell').map((c) => c.textContent)).toEqual(['1', '2', '1', '1', '50 %', '0']);
+    expect(within(goalies()).queryByRole('row', { name: /Bernard/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: t.season.allCompetitions }));
+    expect(await within(goalies()).findByRole('row', { name: /Bernard/ })).toBeInTheDocument();
+  });
+
+  it('an unticked game leaves the goalie table too', async () => {
+    renderMixed();
+    await within(await screen.findByRole('table', { name: t.season.goalies })).findByRole('row', { name: /François Mallet/ });
+    fireEvent.click(screen.getByRole('checkbox', { name: /Rouen/ }));
+    await waitFor(() => expect(screen.queryByRole('table', { name: t.season.goalies })).toBeNull());
   });
 });
