@@ -31,4 +31,78 @@ check('hard delete refused', !!r.error || (r.data?.length ?? 0) === 0, r.error?.
 r = await sb.from('events').select('id,deleted_at').eq('id', id).single();
 check('row still present and soft-deleted', !!r.data?.deleted_at, JSON.stringify(r.data));
 
-console.log(`\nCleanup — paste in Supabase SQL Editor:\ndelete from events where game_code='${code}'; delete from games where code='${code}';`);
+// ---- v2 rules ----------------------------------------------------------
+const tag = Math.random().toString(36).slice(2, 8);
+const goalieName = `SMOKE ${tag}`;
+const row = (over) => ({
+  id: crypto.randomUUID(), game_code: code, kind: 'shot_against', period: 1, x: 0.1, y: 0.5, dot: null, result: 'save',
+  device_role: 'all', recorded_at: new Date().toISOString(), deleted_at: null,
+  goalie_id: null, empty_net: false, strength: 'even', penalty_shot: false, note: null, ...over,
+});
+const bare = { x: null, y: null };
+
+r = await sb.from('goalies').insert({ name: goalieName }).select('id').single();
+check('insert goalie', !r.error && !!r.data?.id, r.error?.message);
+const goalieId = r.data?.id;
+r = await sb.from('goalies').insert({ name: `  ${goalieName.toUpperCase()} ` });
+check('duplicate goalie name rejected (23505)', r.error?.code === '23505', r.error?.code);
+r = await sb.from('goalies').insert({ name: `${goalieName} 2` }).select('id').single();
+const goalie2 = r.data?.id;
+check('insert second goalie', !r.error && !!goalie2, r.error?.message);
+r = await sb.from('goalies').update({ name: `${goalieName} bis` }).eq('id', goalie2).select('id');
+check('rename goalie allowed', !r.error && r.data?.length === 1, r.error?.message);
+r = await sb.from('goalies').delete().eq('id', goalie2).select();
+check('goalie delete refused', !!r.error || (r.data?.length ?? 0) === 0, r.error?.code);
+
+r = await sb.from('events').insert(row({ period: 3 }));
+check('overtime period accepted', !r.error, r.error?.message);
+r = await sb.from('events').insert(row({ kind: 'shot_for', result: 'goal', penalty_shot: true, ...bare }));
+check('penalty shot without position accepted', !r.error, r.error?.message);
+r = await sb.from('events').insert(row({ ...bare }));
+check('shot without position that is not a penalty rejected', !!r.error, r.error?.code);
+r = await sb.from('events').insert(row({ kind: 'own_goal_against', result: 'goal', ...bare }));
+check('own goal accepted', !r.error, r.error?.message);
+r = await sb.from('events').insert(row({ kind: 'shootout_for', result: 'missed', ...bare }));
+check('shootout attempt accepted', !r.error, r.error?.message);
+r = await sb.from('events').insert(row({ kind: 'note', result: 'note', note: 'smoke', ...bare }));
+check('note accepted', !r.error, r.error?.message);
+r = await sb.from('events').insert(row({ kind: 'note', result: 'note', note: 'x'.repeat(201), ...bare }));
+check('note over 200 characters rejected', !!r.error, r.error?.code);
+r = await sb.from('events').insert(row({ kind: 'state_our_goalie', result: 'goalie', goalie_id: goalieId, ...bare }));
+check('goalie state with a goalie accepted', !r.error, r.error?.message);
+r = await sb.from('events').insert(row({ kind: 'state_our_goalie', result: 'goalie', goalie_id: null, ...bare }));
+check('goalie state without a goalie rejected', !!r.error, r.error?.code);
+r = await sb.from('events').insert(row({ kind: 'state_our_goalie', result: 'empty', goalie_id: null, ...bare }));
+check('empty-net state accepted', !r.error, r.error?.message);
+r = await sb.from('events').insert(row({ kind: 'state_strength', result: 'pp', strength: 'pp', ...bare }));
+check('strength state accepted', !r.error, r.error?.message);
+
+const open = row({ result: 'goal' });
+r = await sb.from('events').insert(open);
+check('insert shot against without goalie', !r.error, r.error?.message);
+r = await sb.from('events').update({ goalie_id: goalieId }).eq('id', open.id).select('id');
+check('goalie can be filled in on a shot against', !r.error && r.data?.length === 1, r.error?.message);
+r = await sb.from('events').update({ goalie_id: goalie2 }).eq('id', open.id).select('id');
+check('an attached goalie cannot be replaced', !!r.error, r.error?.code);
+r = await sb.from('events').update({ goalie_id: null }).eq('id', open.id).select('id');
+check('an attached goalie cannot be removed', !!r.error, r.error?.code);
+const forShot = row({ kind: 'shot_for', x: 0.9 });
+await sb.from('events').insert(forShot);
+r = await sb.from('events').update({ goalie_id: goalieId }).eq('id', forShot.id).select('id');
+check('no goalie on a shot for', !!r.error, r.error?.code);
+const emptyShot = row({ empty_net: true, result: 'goal' });
+await sb.from('events').insert(emptyShot);
+r = await sb.from('events').update({ goalie_id: goalieId }).eq('id', emptyShot.id).select('id');
+check('no goalie on an empty-net shot', !!r.error, r.error?.code);
+const gone = row({});
+await sb.from('events').insert(gone);
+await sb.from('events').update({ deleted_at: new Date().toISOString() }).eq('id', gone.id);
+r = await sb.from('events').update({ deleted_at: null }).eq('id', gone.id).select('id');
+check('a deleted event cannot be restored', !!r.error, r.error?.code);
+r = await sb.from('events').update({ empty_net: true }).eq('id', open.id).select('id');
+check('empty_net cannot be edited', !!r.error, r.error?.code);
+
+console.log(
+  `\nCleanup — paste in Supabase SQL Editor:\n` +
+    `delete from events where game_code='${code}'; delete from games where code='${code}'; delete from goalies where name like 'SMOKE %';`,
+);
