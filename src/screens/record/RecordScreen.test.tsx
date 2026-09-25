@@ -320,4 +320,50 @@ describe('overtime', () => {
     fireEvent.click(await screen.findByRole('button', { name: t.record.period(3) }));
     expect(screen.getByRole('dialog', { name: t.record.overtimeTitle })).toBeInTheDocument();
   });
+
+  it('asks the overtime side again after a role or side change in period 3 (no side is ever assumed)', async () => {
+    const d = renderWith({ setup: { period: 3, defendOT: 'left' } });
+    fireEvent.click(await screen.findByRole('button', { name: t.setup.change }));
+    fireEvent.click(screen.getByRole('button', { name: t.roles.shots_for }));
+    fireEvent.click(screen.getByRole('button', { name: t.setup.start }));
+    const dialog = await screen.findByRole('dialog', { name: t.record.overtimeSideTitle });
+    // Mandatory: the period is already 3, so there is nothing to cancel back to.
+    expect(within(dialog).queryByRole('button', { name: t.record.cancel })).toBeNull();
+    expect(within(dialog).getByRole('button', { name: t.setup.defendLeft })).not.toHaveFocus();
+    fireEvent.click(within(dialog).getByRole('button', { name: t.setup.defendRight }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    // Defending the right side in overtime, we attack left: a tap at 90 % of the width is stored at 10 %.
+    await tapRink(360, 100);
+    fireEvent.click(screen.getByRole('button', { name: t.results.goal }));
+    await waitFor(async () => expect((await stored(d)).some((e) => e.kind === 'shot_for')).toBe(true));
+    expect((await stored(d)).find((e) => e.kind === 'shot_for')).toMatchObject({ period: 3, x: 0.1, y: 0.5 });
+  });
+
+  it('asks the side on mount when the saved period is 3 without a known side', async () => {
+    renderWith({ setup: { period: 3 } });
+    const dialog = await screen.findByRole('dialog', { name: t.record.overtimeSideTitle });
+    expect(within(dialog).queryByRole('button', { name: t.record.cancel })).toBeNull();
+  });
+
+  it('cancelling the overtime side prompt keeps the period and a pending shot tap', async () => {
+    renderWith();
+    await tapRink(360, 100);
+    fireEvent.click(screen.getByRole('button', { name: t.record.period(3) }));
+    const dialog = screen.getByRole('dialog', { name: t.record.overtimeSideTitle });
+    fireEvent.click(within(dialog).getByRole('button', { name: t.record.cancel }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('button', { name: t.record.period(1) })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: t.results.goal })).toBeInTheDocument();
+  });
+
+  it('warns about the flip when going back from overtime to P2 and to P1', async () => {
+    renderWith({ setup: { period: 3, defendOT: 'left' } });
+    fireEvent.click(await screen.findByRole('button', { name: t.record.period(2) }));
+    expect(screen.getByRole('dialog', { name: t.record.backToP2Title })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: t.record.halftimeOk }));
+    fireEvent.click(screen.getByRole('button', { name: t.record.period(3) }));
+    fireEvent.click(screen.getByRole('button', { name: t.record.halftimeOk }));
+    fireEvent.click(screen.getByRole('button', { name: t.record.period(1) }));
+    expect(screen.getByRole('dialog', { name: t.record.backToP1Title })).toBeInTheDocument();
+  });
 });

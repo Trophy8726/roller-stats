@@ -61,6 +61,8 @@ export function Recorder({ game, setup, onSetupChange }: { game: Game; setup: Re
   const attackRight = attacksRight(setup.defendP1, setup.period, setup.defendOT);
   const labels = endLabels(game.team_name, game.opponent, attackRight);
   const ctx = { code: game.code, period: setup.period, role: setup.role, state: matchState };
+  // Period 3 without a known side (saved that way, or the setup was rebuilt): mandatory prompt, never assume the P1 side.
+  const needOvertimeSide = setup.period === 3 && !setup.defendOT;
   const shotMode = mode === 'shot_for' || mode === 'shot_against' ? mode : null;
 
   function changeMode(m: Mode) {
@@ -69,17 +71,19 @@ export function Recorder({ game, setup, onSetupChange }: { game: Game; setup: Re
   }
   function changePeriod(p: Period) {
     if (p === setup.period) return;
-    clear();
+    // Asking the overtime side must not throw away a pending tap: Cancel leaves everything as it was.
     if (p === 3 && !setup.defendOT) {
       setSidePrompt(true);
       return;
     }
+    clear();
     const from = setup.period;
     onSetupChange({ ...setup, period: p });
     setFlipNotice(p === 1 ? t.record.backToP1Title : p === 2 ? (from === 3 ? t.record.backToP2Title : t.record.halftimeTitle) : t.record.overtimeTitle);
   }
   function chooseOvertimeSide(side: Side) {
     setSidePrompt(false);
+    if (setup.period !== 3) clear();
     onSetupChange({ ...setup, period: 3, defendOT: side });
   }
   function pickShot(r: ShotResult) {
@@ -208,7 +212,11 @@ export function Recorder({ game, setup, onSetupChange }: { game: Game; setup: Re
           </button>
         </div>
       )}
-      {sidePrompt && <SidePrompt onPick={chooseOvertimeSide} onCancel={() => setSidePrompt(false)} />}
+      {needOvertimeSide ? (
+        <SidePrompt onPick={chooseOvertimeSide} />
+      ) : (
+        sidePrompt && <SidePrompt onPick={chooseOvertimeSide} onCancel={() => setSidePrompt(false)} />
+      )}
     </main>
   );
 }
