@@ -108,9 +108,17 @@ Un script **`supabase/migration-v2.sql`**, que tu colles une fois dans le SQL Ed
 
 Stats individuelles des joueurs, temps de jeu et buts encaissés par 60 minutes, import de la feuille de match, suppression ou masquage de gardiens, identification des gardiens adverses, supériorité à deux joueurs d'écart, PDF de la vue saison, temps morts.
 
-## 13. Points à confirmer
+## 13. Décisions confirmées par l'utilisateur (2026-09-25)
 
-1. **« Penaltys »** : j'ai compris « tirs de pénalty pendant le jeu » (§ 6), pas les pénalités de 2 minutes. Est-ce bien cela ?
-2. **Ton match déjà saisi** : veux-tu pouvoir lui **attribuer un gardien après coup**, avec un bouton dans le rapport « Attribuer un gardien aux tirs non renseignés » ? Sinon ses tirs contre resteront « non renseigné ». Je le recommande si c'est un vrai match.
-3. **Playoffs** : une simple case « Prolongations possibles » à cocher pour les petite et grande finales (comme au § 3), plutôt qu'une liste des phases. Ça te convient ?
-4. **Situation numérique** : trois états seulement, sans distinguer un ou deux joueurs d'écart.
+1. « Penaltys » = **tirs de pénalty pendant le jeu** (§ 6), pas les pénalités de 2 minutes.
+2. Le match déjà saisi doit pouvoir recevoir un gardien après coup : ce sera **François Mallet**, seul gardien de cette rencontre (voir § 14).
+3. Playoffs : une case « Prolongations possibles », à cocher pour les petite et grande finales.
+4. Situation numérique : trois états seulement (Égalité, Supériorité, Infériorité).
+
+## 14. Attribuer un gardien après coup
+
+- Dans le rapport de match, un bouton **« Attribuer un gardien aux tirs non renseignés »** ouvre une liste de l'effectif. Le gardien choisi est rattaché à **tous les tirs contre, CSC contre et tirs au but contre de ce match qui n'ont pas de gardien et ne sont pas sur cage vide**.
+- Ce rattachement ne peut **que remplir** un gardien absent : il ne modifie jamais un gardien déjà attribué, et il ne touche à rien d'autre.
+- Le bouton n'est proposé que s'il reste des saisies sans gardien. Il demande une connexion.
+- **Cas concret :** ajouter d'abord « François Mallet » dans l'onglet Gardiens, puis ouvrir le rapport du match déjà saisi et lui attribuer ses tirs contre.
+- **Base de données :** la modification d'un événement reste très limitée. Seuls deux changements sont permis : `deleted_at` (de vide à rempli, jamais l'inverse) et `goalie_id` (de vide à rempli, seulement sur un tir contre, un CSC contre ou un tir au but contre). Une règle côté base (un « trigger ») le garantit, pas seulement l'appli.
