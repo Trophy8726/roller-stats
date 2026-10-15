@@ -148,9 +148,8 @@ Ouvrir le code d'un match qui n'appartient à aucun de ses clubs affiche « Ce m
 1. **Activer Google** dans Supabase (identifiant OAuth à créer dans Google Cloud).
 2. **Lancer le script `supabase/migration-v3a.sql`** dans l'éditeur SQL. Il :
    - crée les nouvelles tables et colonnes ;
-   - crée le club **Aix-en-Provence** (équipe **N2**), qui reçoit les matchs `9MKH` et `B9NG` et le gardien François Mallet ;
-   - crée le club **Maisons-Laffitte** (équipe **U20**), qui reçoit le match `QSFA` ;
-   - range les gardiens Thibault Cosialls et Thomas Benard (voir section 12) ;
+   - crée le club **Aix-en-Provence** (équipe **N2**), qui reçoit les matchs `9MKH` et `B9NG` et les trois gardiens : François Mallet, Thibault Cosialls et Thomas Benard ;
+   - crée le club **Maisons-Laffitte** (équipe **U20**), qui reçoit le match `QSFA` et aucun gardien ;
    - remplit `club_id` et `team_id` partout, puis rend ces colonnes obligatoires ;
    - remplace les règles d'accès anonymes par celles de la section 4.
 
@@ -261,9 +260,5 @@ Le champ reste libre et propose, pendant la frappe, les adversaires déjà renco
 - Connexion Google seule en phase 1.
 - Un compte peut appartenir à plusieurs clubs.
 - Les gardiens appartiennent au club, pas à une équipe.
-- Aix-en-Provence (N2) et Maisons-Laffitte (U20) sont deux clubs distincts. L'utilisateur est responsable temporaire de Maisons-Laffitte et passera la main.
-
-## 12. Questions ouvertes
-
-1. Dans quel club ranger **Thibault Cosialls** et **Thomas Benard**, qui n'apparaissent dans aucun match ?
-2. Le nom du club : **« Maisons-Laffitte »** (orthographe de la ville) convient-il ?
+- Aix-en-Provence (N2) et Maisons-Laffitte (U20) sont deux clubs distincts, sous ces noms. L'utilisateur est responsable temporaire de Maisons-Laffitte et passera la main.
+- Les trois gardiens existants (François Mallet, Thibault Cosialls, Thomas Benard) jouent à Aix-en-Provence.
