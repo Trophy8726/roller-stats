@@ -2,6 +2,9 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { toRow } from '../domain/factory';
 import { AGAINST_KINDS, type GameEvent } from '../domain/types';
 
+/** The database refused the entry for lack of rights (SQLSTATE 42501): e.g. removed from the club. The entry stays in the outbox. */
+export class PushRefusedError extends Error {}
+
 export interface Remote {
   push(e: GameEvent): Promise<void>;
   fetchEvents(code: string): Promise<GameEvent[]>;
@@ -34,7 +37,9 @@ export function supabaseRemote(client: SupabaseClient): Remote {
       const row = toRow(e);
       const ins = await client.from('events').insert(row);
       // 23505 = this id is already on the server (an earlier push succeeded): fine.
-      if (ins.error && ins.error.code !== '23505') throw new Error(ins.error.message);
+      if (ins.error && ins.error.code !== '23505') {
+        throw ins.error.code === '42501' ? new PushRefusedError(ins.error.message) : new Error(ins.error.message);
+      }
       if (row.deleted_at) {
         const up = await client.from('events').update({ deleted_at: row.deleted_at }).eq('id', row.id);
         if (up.error) throw new Error(up.error.message);

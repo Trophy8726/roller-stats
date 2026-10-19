@@ -11,6 +11,8 @@ export interface BackgroundSync {
   start(): () => void;
   /** Events still waiting to be sent, as of the last pass. */
   pending(): number;
+  /** The last pass was refused by the database (rights): entries are kept. */
+  refused(): boolean;
   subscribe(listener: () => void): () => void;
 }
 
@@ -23,15 +25,19 @@ export function createBackgroundSync(store: EventStore, remote: Remote, interval
   let current: Promise<void> | null = null;
   let again = false;
   let total = 0;
+  let refused = false;
   const listeners = new Set<() => void>();
 
   async function pass() {
+    let anyRefused = false;
     for (const code of await store.pendingCodes()) {
-      await flushOutbox(store, (e) => withTimeout(remote.push(e)), code);
+      const r = await flushOutbox(store, (e) => withTimeout(remote.push(e)), code);
+      if (r.refused) anyRefused = true;
     }
     const n = await store.pendingTotal();
-    if (n !== total) {
+    if (n !== total || anyRefused !== refused) {
       total = n;
+      refused = anyRefused;
       listeners.forEach((l) => l());
     }
   }
@@ -71,6 +77,7 @@ export function createBackgroundSync(store: EventStore, remote: Remote, interval
       };
     },
     pending: () => total,
+    refused: () => refused,
     subscribe(listener) {
       listeners.add(listener);
       return () => {

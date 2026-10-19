@@ -30,7 +30,7 @@ export function initialMode(role: Role): Mode {
 }
 
 export function Recorder({ game, setup, onSetupChange }: { game: Game; setup: RecordSetup; onSetupChange: (s: RecordSetup | null) => void }) {
-  const { events, pending, connected, record, remove } = useGameEvents(game.code);
+  const { events, pending, connected, refused, record, remove } = useGameEvents(game.code);
   const { goalies, names, reload } = useGoalies(game.club_id);
   const [mode, setMode] = useState<Mode>(() => initialMode(setup.role));
   const [tap, setTapState] = useState<Point | null>(null);
@@ -134,7 +134,7 @@ export function Recorder({ game, setup, onSetupChange }: { game: Game; setup: Re
             </button>
           ))}
         </div>
-        <SyncChip pending={pending} connected={connected} />
+        <SyncChip pending={pending} connected={connected} refused={refused} />
         <a className="btn" href={href({ name: 'report', code: game.code })}>
           {t.nav.report}
         </a>

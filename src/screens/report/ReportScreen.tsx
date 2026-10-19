@@ -30,7 +30,7 @@ export function ReportScreen({ code }: { code: string }) {
 }
 
 function Report({ game }: { game: Game }) {
-  const { events, pending, connected, loadError, refresh } = useGameEvents(game.code);
+  const { events, pending, connected, loadError, refused, refresh } = useGameEvents(game.code);
   const { goalies, names, loading: rosterLoading, error: rosterError } = useGoalies(game.club_id);
   const stats = useMemo(() => computeGameStats(events), [events]);
   const byDot = useMemo(() => faceoffsByDot(events), [events]);
@@ -71,7 +71,7 @@ function Report({ game }: { game: Game }) {
         <h1>{t.report.title}</h1>
         <span className="topbar__spacer" />
         <span className="no-print">
-          <SyncChip pending={pending} connected={connected} />
+          <SyncChip pending={pending} connected={connected} refused={refused} />
         </span>
         <a className="btn no-print" href={href({ name: 'record', code: game.code })}>
           {t.nav.record}

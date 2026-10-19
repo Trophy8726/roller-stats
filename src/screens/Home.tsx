@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useClub } from '../clubs/ClubContext';
 import { makeGoalieState } from '../domain/factory';
 import type { Competition, Game, SheetSide, Venue } from '../domain/types';
-import { useBackgroundSync, usePendingTotal, useSync } from '../events/SyncContext';
+import { useBackgroundSync, usePendingTotal, useSync, useSyncRefused } from '../events/SyncContext';
 import { isValidCode, normalizeCode } from '../games/code';
 import { useGoalies } from '../goalies/useGoalies';
 import { t } from '../i18n/fr';
@@ -47,6 +47,7 @@ export function Home() {
   const [recent, setRecent] = useState<Game[]>([]);
   const bg = useBackgroundSync();
   const pending = usePendingTotal();
+  const refused = useSyncRefused();
 
   useEffect(() => {
     if (!clubId) return;
@@ -125,7 +126,7 @@ export function Home() {
         <h1>{t.appName}</h1>
         <ClubSwitcher />
         <span className="topbar__spacer" />
-        {pending > 0 && <SyncChip pending={pending} connected={false} />}
+        {pending > 0 && <SyncChip pending={pending} connected={false} refused={refused} />}
         <a className="btn" href={href({ name: 'season' })}>
           {t.nav.season}
         </a>

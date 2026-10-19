@@ -160,4 +160,22 @@ describe('useGameEvents', () => {
 
     expect(result.current.events.every((e) => e.game_code !== 'AB23')).toBe(true);
   });
+
+  it('keeps refused entries and sends them once access is back', async () => {
+    const d = makeDeps();
+    d.fr.setRefusing(true);
+    const wrapper = ({ children }: { children: ReactNode }) => <SyncProvider deps={d.deps}>{children}</SyncProvider>;
+    const { result } = renderHook(() => useGameEvents('K7QX'), { wrapper });
+    act(() => result.current.record(shotEv('shot_for', 'goal', { game_code: 'K7QX' })));
+    await waitFor(() => expect(result.current.refused).toBe(true));
+    expect(result.current.pending).toBe(1);
+    expect(d.fr.rows.size).toBe(0);
+    d.fr.setRefusing(false);
+    act(() => {
+      window.dispatchEvent(new Event('online'));
+    });
+    await waitFor(() => expect(result.current.pending).toBe(0));
+    expect(result.current.refused).toBe(false);
+    expect(d.fr.rows.size).toBe(1);
+  });
 });

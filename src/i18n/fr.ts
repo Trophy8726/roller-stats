@@ -186,6 +186,7 @@ export const t = {
     synced: 'Synchronisé',
     pending: (n: number) => `${n} en attente`,
     offline: 'Hors ligne',
+    refused: 'Envoi refusé : accès au club retiré',
   },
   report: {
     title: 'Rapport de match',

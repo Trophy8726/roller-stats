@@ -10,7 +10,7 @@ import { toRow } from '../domain/factory';
 import { AGAINST_KINDS, type Game, type GameEvent, type Goalie } from '../domain/types';
 import type { GamesApi } from '../games/api';
 import { DuplicateGoalieError, type GoaliesApi } from '../goalies/api';
-import type { Remote } from '../events/remote';
+import { PushRefusedError, type Remote } from '../events/remote';
 import { EventStore, memoryKV } from '../events/store';
 import { SyncProvider, type SyncDeps } from '../events/SyncContext';
 
@@ -18,12 +18,14 @@ export function fakeRemote() {
   const rows = new Map<string, GameEvent>();
   const listeners = new Set<(e: GameEvent) => void>();
   let online = true;
+  let refusing = false;
   const guard = () => {
     if (!online) throw new Error('offline');
   };
   const remote: Remote = {
     async push(e) {
       guard();
+      if (refusing) throw new PushRefusedError('42501');
       const r = toRow(e);
       const existing = rows.get(r.id);
       rows.set(r.id, existing ? { ...existing, deleted_at: r.deleted_at ?? existing.deleted_at } : r);
@@ -62,6 +64,7 @@ export function fakeRemote() {
     remote,
     rows,
     setOnline: (v: boolean) => (online = v),
+    setRefusing: (v: boolean) => (refusing = v),
     emit: (e: GameEvent) => listeners.forEach((l) => l(e)),
   };
 }

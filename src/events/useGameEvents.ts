@@ -11,6 +11,8 @@ export interface GameEventsState {
   pending: number;
   connected: boolean;
   loadError: boolean;
+  /** The database refused the last push (rights); entries are kept on the device. */
+  refused: boolean;
   record(e: GameEvent): void;
   remove(id: string): void;
   /** Re-fetches this game's server rows and merges them. */
@@ -27,6 +29,7 @@ export function useGameEvents(code: string): GameEventsState {
   const [events, setEvents] = useState<StoredEvent[]>([]);
   const [connected, setConnected] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const [refused, setRefused] = useState(false);
   const flushing = useRef(false);
   const flushAgain = useRef(false);
   const shown = useRef<StoredEvent[]>([]);
@@ -49,6 +52,13 @@ export function useGameEvents(code: string): GameEventsState {
     setLoadError(v);
   }, []);
 
+  const refusedRef = useRef(false);
+  const showRefused = useCallback((v: boolean) => {
+    if (refusedRef.current === v) return;
+    refusedRef.current = v;
+    setRefused(v);
+  }, []);
+
   const flush = useCallback(async () => {
     if (flushing.current) {
       // Folded into the running flush: it makes one more pass when done.
@@ -61,6 +71,7 @@ export function useGameEvents(code: string): GameEventsState {
         flushAgain.current = false;
         const r = await flushOutbox(store, (e) => withTimeout(remote.push(e)), code);
         show(code, r.events);
+        if (isActive(code)) showRefused(r.refused);
         // Go again if asked during this pass, or if it succeeded but events were added meanwhile.
         const leftover = !r.failed && r.events.some((e) => e.sync === 'pending');
         if (!flushAgain.current && !leftover) break;
@@ -68,7 +79,7 @@ export function useGameEvents(code: string): GameEventsState {
     } finally {
       flushing.current = false;
     }
-  }, [store, remote, code, show]);
+  }, [store, remote, code, show, showRefused]);
 
   const refetch = useCallback(async () => {
     try {
@@ -134,5 +145,5 @@ export function useGameEvents(code: string): GameEventsState {
     [store, code, flush, show],
   );
 
-  return { events, pending: events.filter((e) => e.sync === 'pending').length, connected, loadError, record, remove, refresh: refetch };
+  return { events, pending: events.filter((e) => e.sync === 'pending').length, connected, loadError, refused, record, remove, refresh: refetch };
 }

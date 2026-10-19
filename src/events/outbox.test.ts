@@ -1,3 +1,4 @@
+import { PushRefusedError } from './remote';
 import { toRow } from '../domain/factory';
 import type { GameEvent } from '../domain/types';
 import { shotEv } from '../test/builders';
@@ -65,5 +66,23 @@ describe('withTimeout', () => {
   it('passes through a result or an error that arrives in time', async () => {
     await expect(withTimeout(Promise.resolve(3), 1000)).resolves.toBe(3);
     await expect(withTimeout(Promise.reject(new Error('offline')), 1000)).rejects.toThrow('offline');
+  });
+  it('reports a refused push and keeps the entry pending', async () => {
+    const store = new EventStore(memoryKV());
+    await store.add(shotEv('shot_for', 'goal', { game_code: 'K7QX' }));
+    const r = await flushOutbox(store, async () => {
+      throw new PushRefusedError('42501');
+    }, 'K7QX');
+    expect(r).toMatchObject({ pushed: 0, failed: true, refused: true });
+    expect(r.events[0].sync).toBe('pending');
+  });
+
+  it('a network failure is not a refusal', async () => {
+    const store = new EventStore(memoryKV());
+    await store.add(shotEv('shot_for', 'goal', { game_code: 'K7QX' }));
+    const r = await flushOutbox(store, async () => {
+      throw new Error('offline');
+    }, 'K7QX');
+    expect(r.refused).toBe(false);
   });
 });

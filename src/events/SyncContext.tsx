@@ -53,6 +53,12 @@ export function usePendingTotal(): number {
   return useSyncExternalStore(bg.subscribe, bg.pending);
 }
 
+/** The last background pass was refused by the database (rights), entries are kept. */
+export function useSyncRefused(): boolean {
+  const bg = useBackgroundSync();
+  return useSyncExternalStore(bg.subscribe, bg.refused);
+}
+
 export function defaultSyncDeps(): SyncDeps {
   return {
     store: new EventStore(idbKV()),

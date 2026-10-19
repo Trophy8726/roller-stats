@@ -1,3 +1,4 @@
+import { makeDeps } from '../test/fakes';
 import type { GameEvent } from '../domain/types';
 import { shotEv } from '../test/builders';
 import { fakeRemote } from '../test/fakes';
@@ -71,5 +72,18 @@ describe('createBackgroundSync', () => {
     window.dispatchEvent(new Event('online'));
     await vi.waitFor(() => expect(fr.rows.size).toBe(1));
     stop();
+  });
+  it('exposes whether the last pass was refused', async () => {
+    const d = makeDeps();
+    d.fr.setRefusing(true);
+    await d.deps.store.add(shotEv('shot_for', 'goal', { game_code: 'K7QX' }));
+    const bg = createBackgroundSync(d.deps.store, d.deps.remote, 60_000);
+    await bg.run();
+    expect(bg.refused()).toBe(true);
+    expect(bg.pending()).toBe(1);
+    d.fr.setRefusing(false);
+    await bg.run();
+    expect(bg.refused()).toBe(false);
+    expect(bg.pending()).toBe(0);
   });
 });
