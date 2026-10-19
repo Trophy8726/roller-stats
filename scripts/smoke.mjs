@@ -16,7 +16,12 @@ function readEnv(file) {
 }
 const production = readEnv('.env');
 const env = { ...readEnv('.env.development'), ...readEnv('.env.smoke.local') };
-if (!env.VITE_SUPABASE_URL || env.VITE_SUPABASE_URL === production.VITE_SUPABASE_URL) {
+const prodRef = production.VITE_SUPABASE_URL ? new URL(production.VITE_SUPABASE_URL).hostname.split('.')[0].toLowerCase() : '';
+if (
+  !env.VITE_SUPABASE_URL ||
+  env.VITE_SUPABASE_URL === production.VITE_SUPABASE_URL ||
+  (prodRef && env.VITE_SUPABASE_URL.toLowerCase().includes(prodRef))
+) {
   console.error('Refusing to run: .env.development must point at the staging project, never at production.');
   process.exit(1);
 }
@@ -89,6 +94,8 @@ r = await anon.from('events').insert(row({}));
 check('signed out: insert refused', !!r.error, r.error?.code);
 r = await anon.rpc('create_club', { club_name: 'x', team_name: 'y' });
 check('signed out: create_club refused', !!r.error, r.error?.code);
+r = await anon.rpc('game_club', { game: code });
+check('signed out: helper functions not callable', !!r.error, r.error?.code);
 
 // ---- another club ---------------------------------------------------------
 r = await b.from('games').select('code').eq('code', code);
@@ -101,12 +108,16 @@ r = await b.from('games').insert({ ...game, code: newCode() });
 check('other account: game insert refused', !!r.error, r.error?.code);
 r = await b.rpc('club_invite', { club: clubId });
 check('non-member cannot read the invite token', !!r.error, r.error?.code);
+r = await b.from('club_invites').select('token');
+check('club_invites not readable directly', !!r.error, r.error?.code);
 r = await b.rpc('create_club', { club_name: `SMOKE ${tag} B`, team_name: 'X' });
+check('second club created', !r.error && typeof r.data === 'string', r.error?.message);
 const clubB = r.data;
 r = await b.from('teams').select('id').eq('club_id', clubB).single();
 const teamB = r.data?.id;
+check('second club team', !!teamB, r.error?.message);
 r = await a.from('games').insert({ ...game, code: newCode(), team_id: teamB });
-check('a game cannot use the team of another club', !!r.error, r.error?.code);
+check('a game cannot use the team of another club (23503)', r.error?.code === '23503', r.error?.code);
 
 // ---- joining ---------------------------------------------------------------
 r = await b.rpc('invite_info', { invite_token: token });

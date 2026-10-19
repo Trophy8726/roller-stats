@@ -127,8 +127,10 @@ create function public.shares_club(other uuid) returns boolean language sql stab
 $$;
 
 -- guards ------------------------------------------------------------------------------
-create function public.club_members_keep_owner() returns trigger language plpgsql set search_path = '' as $$
+create function public.club_members_keep_owner() returns trigger language plpgsql security definer set search_path = '' as $$
 begin
+  -- serialise membership changes per club, so two owners cannot demote each other concurrently
+  perform 1 from public.clubs c where c.id = old.club_id for update;
   if old.role = 'owner' and (tg_op = 'DELETE' or new.role <> 'owner')
      and exists (select 1 from public.clubs c where c.id = old.club_id)
      and not exists (select 1 from public.club_members m
@@ -143,12 +145,16 @@ create trigger club_members_keep_owner before update or delete on public.club_me
 
 create function public.teams_guard_archive() returns trigger language plpgsql set search_path = '' as $$
 begin
-  if new.archived_at is distinct from old.archived_at and not public.is_owner(old.club_id) then
+  if tg_op = 'INSERT' then
+    if new.archived_at is not null and not public.is_owner(new.club_id) then
+      raise exception 'only an owner can archive a team' using errcode = '42501';
+    end if;
+  elsif new.archived_at is distinct from old.archived_at and not public.is_owner(old.club_id) then
     raise exception 'only an owner can archive a team' using errcode = '42501';
   end if;
   return new;
 end $$;
-create trigger teams_guard_archive before update on public.teams for each row execute function public.teams_guard_archive();
+create trigger teams_guard_archive before insert or update on public.teams for each row execute function public.teams_guard_archive();
 
 -- operations in several steps -------------------------------------------------------------
 create function public.create_club(club_name text, team_name text) returns uuid
@@ -200,6 +206,10 @@ revoke execute on function public.create_club(text, text), public.invite_info(te
   public.club_invite(uuid), public.regenerate_invite(uuid) from public, anon;
 grant execute on function public.create_club(text, text), public.invite_info(text), public.join_club(text),
   public.club_invite(uuid), public.regenerate_invite(uuid) to authenticated;
+
+-- helpers: not callable by signed-out clients (new_invite_token stays internal).
+revoke execute on function public.game_club(text), public.is_member(uuid), public.is_owner(uuid), public.shares_club(uuid), public.new_invite_token() from public, anon;
+grant execute on function public.game_club(text), public.is_member(uuid), public.is_owner(uuid), public.shares_club(uuid) to authenticated;
 
 -- access rules ------------------------------------------------------------------------------
 drop policy "games read" on public.games;
