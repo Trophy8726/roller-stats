@@ -1,6 +1,7 @@
 import { render } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import type { AuthApi, User } from '../auth/api';
+import { App } from '../App';
 import { AuthProvider } from '../auth/AuthContext';
 import { InvalidInviteError, LastOwnerError, type ClubRole, type ClubsApi, type Member, type Membership } from '../clubs/api';
 import { ClubProvider } from '../clubs/ClubContext';
@@ -308,6 +309,16 @@ export function renderWithSync(ui: ReactElement, deps: SyncDeps, opts: { user?: 
         ) : (
           ui
         )}
+      </AuthProvider>
+    </SyncProvider>,
+  );
+}
+
+export function renderApp(deps: SyncDeps, user: User | null = TEST_USER) {
+  return render(
+    <SyncProvider deps={deps}>
+      <AuthProvider initialUser={user}>
+        <App />
       </AuthProvider>
     </SyncProvider>,
   );
