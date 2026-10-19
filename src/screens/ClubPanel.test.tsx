@@ -51,6 +51,28 @@ describe('ClubPanel — owner', () => {
     await waitFor(() => expect(d.ft.list[0].archived_at).toBeNull());
   });
 
+  it('says so when the link cannot be copied', async () => {
+    const original = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
+    try {
+      renderWithSync(<ClubPanel />, withVolunteer().deps);
+      await userEvent.click(await screen.findByRole('button', { name: t.club.copy }));
+      expect(await screen.findByText(t.club.copyManual)).toBeInTheDocument();
+    } finally {
+      if (original) Object.defineProperty(navigator, 'clipboard', original);
+      else delete (navigator as unknown as Record<string, unknown>).clipboard;
+    }
+  });
+
+  it('drops the owner tools when the server says the role changed', async () => {
+    const d = withVolunteer();
+    d.fc.members[0].role = 'member';
+    d.fc.members[1].role = 'owner';
+    renderWithSync(<ClubPanel />, d.deps);
+    await screen.findByRole('list', { name: t.club.members });
+    await waitFor(() => expect(screen.queryByLabelText(t.club.invite)).toBeNull());
+  });
+
   it('explains why the last owner cannot leave', async () => {
     renderWithSync(<ClubPanel />, withVolunteer().deps);
     await userEvent.click(await screen.findByRole('button', { name: t.club.leave }));

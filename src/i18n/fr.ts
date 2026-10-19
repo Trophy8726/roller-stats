@@ -13,6 +13,7 @@ export const t = {
     inviteHint: "Envoyez ce lien aux bénévoles : en l'ouvrant, ils rejoignent le club comme membres.",
     copy: 'Copier',
     copied: 'Lien copié',
+    copyManual: 'Copie impossible ici : sélectionnez le lien et copiez-le.',
     regenerate: 'Régénérer',
     regenerateConfirm: "L'ancien lien ne fonctionnera plus. Régénérer le lien ?",
     teams: 'Équipes',

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { LastOwnerError, type ClubRole, type Member } from '../clubs/api';
 import { useClub } from '../clubs/ClubContext';
@@ -29,6 +29,8 @@ export function ClubPanel() {
   const [teamDraft, setTeamDraft] = useState('');
   const [clubDraft, setClubDraft] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const inviteRef = useRef<HTMLInputElement>(null);
+  const reloadClub = club.reload;
 
   const fail = (e: unknown) => setMessage(e instanceof LastOwnerError ? t.club.lastOwner : e instanceof DuplicateTeamError ? t.home.teamDuplicate : t.errors.server);
 
@@ -39,8 +41,14 @@ export function ClubPanel() {
       if (owner) setToken(await clubs.invite(clubId));
     } catch (e) {
       fail(e);
+      void reloadClub();
     }
-  }, [clubs, clubId, owner]);
+  }, [clubs, clubId, owner, reloadClub]);
+
+  // The role shown may be stale (another owner may have changed it): refresh it when the panel opens.
+  useEffect(() => {
+    if (clubId) void reloadClub();
+  }, [clubId, reloadClub]);
 
   useEffect(() => {
     void load();
@@ -61,7 +69,10 @@ export function ClubPanel() {
     setPending(null);
     if (!p) return;
     if (p.kind === 'remove') await run(() => clubs.remove(clubId, p.member.userId));
-    if (p.kind === 'regenerate') await run(async () => setToken(await clubs.regenerateInvite(clubId)));
+    if (p.kind === 'regenerate') await run(async () => {
+      setToken(await clubs.regenerateInvite(clubId));
+      setCopied(false);
+    });
     if (p.kind === 'leave') {
       setMessage(null);
       try {
@@ -81,6 +92,18 @@ export function ClubPanel() {
       await teams.add(newTeam);
       setNewTeam('');
     });
+  }
+
+  async function copyLink(url: string) {
+    setMessage(null);
+    try {
+      if (!navigator.clipboard) throw new Error('no clipboard');
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+    } catch {
+      inviteRef.current?.select();
+      setMessage(t.club.copyManual);
+    }
   }
 
   const setRole = (m: Member, role: ClubRole) => run(() => clubs.setRole(clubId, m.userId, role));
@@ -167,16 +190,14 @@ export function ClubPanel() {
         <section className="stack">
           <label className="field">
             {t.club.invite}
-            <input className="input" readOnly value={inviteUrl(token)} onFocus={(e) => e.target.select()} />
+            <input ref={inviteRef} className="input" readOnly value={inviteUrl(token)} onFocus={(e) => e.target.select()} />
           </label>
           <p className="muted">{t.club.inviteHint}</p>
           <div className="row">
             <button
               type="button"
               className="btn btn--primary"
-              onClick={() => {
-                void navigator.clipboard?.writeText(inviteUrl(token)).then(() => setCopied(true));
-              }}
+              onClick={() => void copyLink(inviteUrl(token))}
             >
               {copied ? t.club.copied : t.club.copy}
             </button>
