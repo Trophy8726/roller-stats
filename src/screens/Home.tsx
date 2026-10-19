@@ -13,6 +13,7 @@ import { AccountMenu } from '../ui/AccountMenu';
 import { ClubSwitcher } from '../ui/ClubSwitcher';
 import { SyncChip } from '../ui/SyncChip';
 import type { Team } from '../teams/api';
+import { ClubPanel } from './ClubPanel';
 import { GoalieRoster } from './GoalieRoster';
 import { TeamPicker } from './home/TeamPicker';
 
@@ -23,7 +24,7 @@ const EMPTY_NET = '__empty__';
 /** Extra time and shootouts exist in the league and the cup, and only in the finals of the playoffs (ticked by hand). */
 const overtimeByDefault = (c: Competition) => c !== 'playoffs';
 
-type Tab = 'games' | 'goalies';
+type Tab = 'games' | 'goalies' | 'club';
 
 export function Home() {
   const { games, store } = useSync();
@@ -137,6 +138,9 @@ export function Home() {
         <button type="button" aria-pressed={tab === 'goalies'} onClick={() => setTab('goalies')}>
           {t.home.tabGoalies}
         </button>
+        <button type="button" aria-pressed={tab === 'club'} onClick={() => setTab('club')}>
+          {t.home.tabClub}
+        </button>
       </div>
       {error && (
         <p className="notice" role="alert">
@@ -145,6 +149,8 @@ export function Home() {
       )}
       {tab === 'goalies' ? (
         <GoalieRoster roster={roster} />
+      ) : tab === 'club' ? (
+        <ClubPanel />
       ) : (
         <div className="grid">
           <section className="card stack">
