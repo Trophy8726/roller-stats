@@ -49,5 +49,9 @@ export const loadCachedGame = (code: string): Game | null => {
 export const saveCachedGame = (g: Game): void => store.set(`game:${g.code}`, JSON.stringify(g));
 export const loadCachedGoalies = (): Goalie[] => readJson<Goalie[]>('goalies') ?? [];
 export const saveCachedGoalies = (g: Goalie[]): void => store.set('goalies', JSON.stringify(g));
+/** An invitation opened while signed out: kept across the Google round trip, then cleared once used. */
+export const savePendingInvite = (token: string): void => store.set('pendingInvite', token);
+export const loadPendingInvite = (): string | null => store.get('pendingInvite');
+export const clearPendingInvite = (): void => store.set('pendingInvite', null);
 /** Local date (not UTC) as YYYY-MM-DD. */
 export const todayIso = (): string => new Date().toLocaleDateString('sv-SE');

@@ -1,5 +1,5 @@
 import { gameFx } from './test/builders';
-import { loadCachedGame, loadCachedGoalies, saveCachedGoalies, loadSetup, loadTeamName, saveCachedGame, saveSetup, saveTeamName, todayIso } from './settings';
+import { loadCachedGame, loadCachedGoalies, saveCachedGoalies, loadSetup, loadTeamName, saveCachedGame, saveSetup, saveTeamName, todayIso, savePendingInvite, loadPendingInvite, clearPendingInvite } from './settings';
 
 describe('settings', () => {
   beforeEach(() => localStorage.clear());
@@ -33,6 +33,14 @@ describe('settings', () => {
     expect(loadCachedGoalies()).toEqual([{ id: 'g1', name: 'Mallet' }]);
     localStorage.setItem('goalies', '{oops');
     expect(loadCachedGoalies()).toEqual([]);
+  });
+  it('keeps a pending invitation until it is cleared', () => {
+    expect(loadPendingInvite()).toBeNull();
+    savePendingInvite('tok');
+    expect(loadPendingInvite()).toBe('tok');
+    expect(loadPendingInvite()).toBe('tok');
+    clearPendingInvite();
+    expect(loadPendingInvite()).toBeNull();
   });
   it('gives today as YYYY-MM-DD', () => expect(todayIso()).toMatch(/^\d{4}-\d{2}-\d{2}$/));
 });

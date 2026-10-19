@@ -4,12 +4,14 @@ export type Route =
   | { name: 'home' }
   | { name: 'season' }
   | { name: 'record'; code: string }
-  | { name: 'report'; code: string };
+  | { name: 'report'; code: string }
+  | { name: 'join'; token: string };
 
 export function parseRoute(hash: string): Route {
   const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean);
   if (parts[0] === 'saisie' && parts[1]) return { name: 'record', code: parts[1].toUpperCase() };
   if (parts[0] === 'rapport' && parts[1]) return { name: 'report', code: parts[1].toUpperCase() };
+  if (parts[0] === 'rejoindre' && parts[1]) return { name: 'join', token: parts[1] };
   if (parts[0] === 'saison') return { name: 'season' };
   return { name: 'home' };
 }
@@ -24,6 +26,8 @@ export function href(r: Route): string {
       return `#/saisie/${r.code}`;
     case 'report':
       return `#/rapport/${r.code}`;
+    case 'join':
+      return `#/rejoindre/${r.token}`;
   }
 }
 

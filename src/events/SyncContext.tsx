@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from 'react';
+import { supabaseAuth, type AuthApi } from '../auth/api';
 import { supabaseGoalies, type GoaliesApi } from '../goalies/api';
 import { supabaseGames, type GamesApi } from '../games/api';
 import { supabase } from '../lib/supabase';
@@ -12,6 +13,7 @@ export interface SyncDeps {
   remote: Remote;
   games: GamesApi;
   goalies: GoaliesApi;
+  auth: AuthApi;
 }
 
 const Ctx = createContext<SyncDeps | null>(null);
@@ -48,5 +50,11 @@ export function usePendingTotal(): number {
 }
 
 export function defaultSyncDeps(): SyncDeps {
-  return { store: new EventStore(idbKV()), remote: supabaseRemote(supabase), games: supabaseGames(supabase), goalies: supabaseGoalies(supabase) };
+  return {
+    store: new EventStore(idbKV()),
+    remote: supabaseRemote(supabase),
+    games: supabaseGames(supabase),
+    goalies: supabaseGoalies(supabase),
+    auth: supabaseAuth(supabase),
+  };
 }

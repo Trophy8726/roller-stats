@@ -12,6 +12,10 @@ describe('parseRoute', () => {
   it('parses the season route', () => {
     expect(parseRoute('#/saison')).toEqual({ name: 'season' });
   });
+  it('parses and builds the invitation route, keeping the token case', () => {
+    expect(parseRoute('#/rejoindre/abcDEF123')).toEqual({ name: 'join', token: 'abcDEF123' });
+    expect(href({ name: 'join', token: 'abcDEF123' })).toBe('#/rejoindre/abcDEF123');
+  });
   it('round-trips through href', () => {
     const routes: Route[] = [
       { name: 'home' },

@@ -1,6 +1,12 @@
 export const t = {
   appName: 'Roller Stats',
   nav: { home: 'Accueil', season: 'Saison', report: 'Rapport', record: 'Saisie' },
+  auth: {
+    intro: 'Les statistiques de vos matchs de roller hockey, saisies en direct sur plusieurs tablettes. Connectez-vous pour retrouver les matchs de votre club.',
+    google: 'Continuer avec Google',
+    failed: 'La connexion Google a échoué ou a été annulée. Réessayez.',
+    invitePending: 'Connectez-vous pour rejoindre le club qui vous a invité.',
+  },
   home: {
     newGame: 'Nouveau match',
     team: 'Notre équipe',

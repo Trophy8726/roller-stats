@@ -1,5 +1,7 @@
 import { render } from '@testing-library/react';
 import type { ReactElement } from 'react';
+import type { AuthApi, User } from '../auth/api';
+import { AuthProvider } from '../auth/AuthContext';
 import { toRow } from '../domain/factory';
 import { AGAINST_KINDS, type Game, type GameEvent, type Goalie } from '../domain/types';
 import type { GamesApi } from '../games/api';
@@ -118,14 +120,48 @@ export function fakeGoalies(initial: Goalie[] = []) {
   return { api, list, setFailing: (v: boolean) => (failing = v) };
 }
 
-export function makeDeps(opts: { games?: Game[]; goalies?: Goalie[] } = {}) {
+export const TEST_USER: User = { id: 'user-1', email: 'paul@example.com', name: 'Paul' };
+
+export function fakeAuth(initial: User | null) {
+  let current = initial;
+  const listeners = new Set<(u: User | null) => void>();
+  const api: AuthApi = {
+    current: async () => current,
+    onChange(cb) {
+      listeners.add(cb);
+      return () => listeners.delete(cb);
+    },
+    signInWithGoogle: vi.fn(async () => {}),
+    signOut: vi.fn(async () => {
+      current = null;
+      listeners.forEach((l) => l(null));
+    }),
+  };
+  return {
+    api,
+    userId: () => current?.id ?? '',
+    setUser(u: User | null) {
+      current = u;
+      listeners.forEach((l) => l(u));
+    },
+  };
+}
+
+export function makeDeps(opts: { games?: Game[]; goalies?: Goalie[]; user?: User | null } = {}) {
   const fr = fakeRemote();
   const fg = fakeGames(opts.games);
   const fgo = fakeGoalies(opts.goalies);
-  const deps: SyncDeps = { store: new EventStore(memoryKV()), remote: fr.remote, games: fg.api, goalies: fgo.api };
-  return { deps, fr, fg, fgo };
+  const fa = fakeAuth(opts.user === undefined ? TEST_USER : opts.user);
+  const deps: SyncDeps = { store: new EventStore(memoryKV()), remote: fr.remote, games: fg.api, goalies: fgo.api, auth: fa.api };
+  return { deps, fr, fg, fgo, fa };
 }
 
-export function renderWithSync(ui: ReactElement, deps: SyncDeps) {
-  return render(<SyncProvider deps={deps}>{ui}</SyncProvider>);
+/** Renders `ui` as a signed-in screen (or signed out with `user: null`), without waiting for the session read. */
+export function renderWithSync(ui: ReactElement, deps: SyncDeps, opts: { user?: User | null } = {}) {
+  const user = opts.user === undefined ? TEST_USER : opts.user;
+  return render(
+    <SyncProvider deps={deps}>
+      <AuthProvider initialUser={user}>{ui}</AuthProvider>
+    </SyncProvider>,
+  );
 }
