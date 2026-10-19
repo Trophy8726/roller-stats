@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { shotEv } from '../test/builders';
-import { PAGE, pageAll, supabaseRemote } from './remote';
+import { PAGE, pageAll, PushRefusedError, supabaseRemote } from './remote';
 
 describe('pageAll', () => {
   it('fetches every page when there are more than 1000 rows', async () => {
@@ -43,6 +43,21 @@ describe('supabaseRemote.push', () => {
   it('throws on network errors so the event stays pending', async () => {
     const client = { from: () => ({ insert: async () => ({ error: { code: '', message: 'Failed to fetch' } }) }) } as unknown as SupabaseClient;
     await expect(supabaseRemote(client).push(shotEv('shot_for', 'goal'))).rejects.toThrow('Failed to fetch');
+  });
+});
+
+describe('supabaseRemote.push error mapping', () => {
+  const failing = (error: { code: string; message: string }) =>
+    ({ from: () => ({ insert: async () => ({ error }) }) }) as unknown as SupabaseClient;
+
+  it('maps a refusal for lack of rights (42501) to PushRefusedError', async () => {
+    await expect(supabaseRemote(failing({ code: '42501', message: 'x' })).push(shotEv('shot_for', 'goal'))).rejects.toBeInstanceOf(PushRefusedError);
+  });
+
+  it('maps any other database error to a plain Error', async () => {
+    const p = supabaseRemote(failing({ code: '500', message: 'server' })).push(shotEv('shot_for', 'goal'));
+    await expect(p).rejects.toThrow('server');
+    await expect(p).rejects.not.toBeInstanceOf(PushRefusedError);
   });
 });
 
