@@ -1,6 +1,7 @@
 -- Run AFTER the v3a deploy, once you have signed in with Google on the new app.
 -- Replace the address on the marked line with the Google address you signed in with, then Run.
 -- It makes that account owner ("Responsable") of the two clubs created by migration-v3a.sql. Nothing stays behind.
+-- Only clubs that still have no member are claimed: a club someone else created meanwhile under the same name is left alone.
 do $$
 declare uid uuid;
 begin
@@ -10,6 +11,8 @@ begin
     raise exception 'No account with this address yet: sign in with Google on the app first, then run this again.';
   end if;
   insert into public.club_members (club_id, user_id, role)
-    select c.id, uid, 'owner' from public.clubs c where c.name in ('Aix-en-Provence', 'Maisons-Laffitte')
+    select c.id, uid, 'owner' from public.clubs c
+    where c.name in ('Aix-en-Provence', 'Maisons-Laffitte')
+      and not exists (select 1 from public.club_members m where m.club_id = c.id)
   on conflict (club_id, user_id) do update set role = 'owner';
 end $$;
