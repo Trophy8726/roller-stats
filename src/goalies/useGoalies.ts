@@ -23,7 +23,8 @@ export function useGoalies(clubId: string | undefined): GoaliesState {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const listRef = useRef(goalies);
-  const alive = useRef(true);
+  /** The club the state belongs to: results for another club are dropped. */
+  const club = useRef(clubId);
 
   const remember = useCallback((list: Goalie[]) => {
     listRef.current = list;
@@ -38,22 +39,24 @@ export function useGoalies(clubId: string | undefined): GoaliesState {
     }
     try {
       const list = await api.list(clubId);
-      if (!alive.current) return;
+      if (club.current !== clubId) return;
       remember(list);
       setError(false);
     } catch {
-      if (alive.current) setError(true);
+      if (club.current === clubId) setError(true);
     } finally {
-      if (alive.current) setLoading(false);
+      if (club.current === clubId) setLoading(false);
     }
   }, [api, remember, clubId]);
 
   useEffect(() => {
-    alive.current = true;
+    club.current = clubId;
     remember(clubId ? loadCachedGoalies(clubId) : []);
+    setLoading(true);
+    setError(false);
     void reload();
     return () => {
-      alive.current = false;
+      club.current = undefined;
     };
   }, [reload, remember, clubId]);
 
@@ -61,7 +64,7 @@ export function useGoalies(clubId: string | undefined): GoaliesState {
     async (name: string) => {
       if (!clubId) throw new Error('no club');
       const g = await api.add(clubId, name);
-      if (alive.current) remember([...listRef.current, g].sort(byName));
+      if (club.current === clubId) remember([...listRef.current, g].sort(byName));
       return g;
     },
     [api, remember, clubId],
@@ -69,8 +72,9 @@ export function useGoalies(clubId: string | undefined): GoaliesState {
 
   const rename = useCallback(
     async (id: string, name: string) => {
+      const c = club.current;
       const g = await api.rename(id, name);
-      if (alive.current) remember(listRef.current.map((x) => (x.id === id ? g : x)).sort(byName));
+      if (c && club.current === c) remember(listRef.current.map((x) => (x.id === id ? g : x)).sort(byName));
       return g;
     },
     [api, remember],

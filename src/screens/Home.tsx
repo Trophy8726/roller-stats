@@ -209,7 +209,7 @@ export function Home() {
                     <option value={EMPTY_NET}>{t.home.startGoalieEmpty}</option>
                   </select>
                 </label>
-                <button className="btn btn--primary" type="submit" disabled={busy}>
+                <button className="btn btn--primary" type="submit" disabled={busy || !team}>
                   {t.home.create}
                 </button>
               </form>

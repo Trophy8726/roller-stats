@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
+import type { Goalie } from '../domain/types';
 import { SyncProvider } from '../events/SyncContext';
 import { makeDeps } from '../test/fakes';
 import { DuplicateGoalieError } from './api';
@@ -72,5 +73,21 @@ describe('useGoalies', () => {
     const { result } = renderHook(() => useGoalies(undefined), { wrapper });
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.goalies).toEqual([]);
+  });
+
+  it('drops a reply still in flight for the previous club', async () => {
+    const d = makeDeps({ goalies: [{ id: 'g2', name: 'Autre', club_id: 'club-2' }] });
+    let release: (l: Goalie[]) => void = () => {};
+    const real = d.deps.goalies.list;
+    d.deps.goalies.list = (clubId) => (clubId === 'club-1' ? new Promise<Goalie[]>((r) => (release = r)) : real(clubId));
+    const wrapper = ({ children }: { children: ReactNode }) => <SyncProvider deps={d.deps}>{children}</SyncProvider>;
+    const { result, rerender } = renderHook(({ id }) => useGoalies(id), { wrapper, initialProps: { id: 'club-1' } });
+    rerender({ id: 'club-2' });
+    await waitFor(() => expect(result.current.goalies.map((g) => g.name)).toEqual(['Autre']));
+    await act(async () => {
+      release([{ id: 'g1', name: 'Mallet', club_id: 'club-1' }]);
+    });
+    expect(result.current.goalies.map((g) => g.name)).toEqual(['Autre']);
+    expect(JSON.parse(localStorage.getItem('goalies:club-2') ?? '[]').map((g: Goalie) => g.name)).toEqual(['Autre']);
   });
 });

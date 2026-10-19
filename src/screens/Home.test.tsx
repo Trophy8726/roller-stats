@@ -59,6 +59,22 @@ describe('Home', () => {
     expect((screen.getByLabelText(t.home.team) as HTMLSelectElement).selectedOptions[0].text).toBe('U17');
   });
 
+  it('cannot create a game while a new team is being added, then uses the new team', async () => {
+    const d = renderHome([]);
+    const picker = await screen.findByLabelText(t.home.team);
+    await waitFor(() => expect(picker).toHaveValue('team-1'));
+    await userEvent.type(screen.getByLabelText(t.home.opponent), 'Rouen');
+    await userEvent.selectOptions(picker, t.home.newTeam);
+    expect(screen.getByRole('button', { name: t.home.create })).toBeDisabled();
+    await userEvent.type(screen.getByLabelText(t.home.newTeamName), 'U17');
+    await userEvent.click(screen.getByRole('button', { name: t.home.addTeam }));
+    await waitFor(() => expect(screen.getByRole('button', { name: t.home.create })).toBeEnabled());
+    await userEvent.click(screen.getByRole('button', { name: t.home.create }));
+    expect(await screen.findByText('K7QX')).toBeInTheDocument();
+    expect(d.fg.games[0]).toMatchObject({ team_name: 'U17' });
+    expect(d.fg.games[0].team_id).not.toBe('team-1');
+  });
+
   it('refuses a team name the club already has', async () => {
     renderHome([]);
     await userEvent.selectOptions(await screen.findByLabelText(t.home.team), t.home.newTeam);

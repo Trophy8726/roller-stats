@@ -16,10 +16,10 @@ export function TeamPicker({ clubId, value, onChange }: { clubId: string; value:
 
   // Keep the selection valid: the remembered team may have been archived since.
   useEffect(() => {
-    if (loading || (value && active.some((x) => x.id === value.id))) return;
+    if (adding || loading || (value && active.some((x) => x.id === value.id))) return;
     const remembered = active.find((x) => x.id === loadLastTeam(clubId));
     onChange(remembered ?? active[0] ?? null);
-  }, [loading, active, value, clubId, onChange]);
+  }, [adding, loading, active, value, clubId, onChange]);
 
   async function addTeam() {
     if (busy || !name.trim()) return;
@@ -47,6 +47,7 @@ export function TeamPicker({ clubId, value, onChange }: { clubId: string; value:
           onChange={(e) => {
             if (e.target.value === NEW_TEAM) {
               setAdding(true);
+              onChange(null);
               return;
             }
             setAdding(false);
