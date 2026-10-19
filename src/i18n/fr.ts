@@ -38,6 +38,16 @@ export const t = {
     startGoalieEmpty: 'Notre filet désert',
     startGoalieFailed: "Match créé, mais le gardien de départ n'a pas pu être enregistré : choisissez-le dans l'onglet Divers de l'écran de saisie.",
   },
+  clubs: {
+    switch: 'Club',
+  },
+  account: {
+    signOut: 'Se déconnecter',
+    pendingWarning: (n: number) =>
+      `${n} saisie${n > 1 ? 's' : ''} pas encore envoyée${n > 1 ? 's' : ''}. Elle${n > 1 ? 's' : ''} reste${n > 1 ? 'nt' : ''} sur cet appareil et partir${n > 1 ? 'ont' : 'a'} à la prochaine connexion. Mieux vaut attendre le réseau.`,
+    wait: 'Attendre',
+    signOutAnyway: 'Se déconnecter quand même',
+  },
   competitions: { championnat: 'Championnat', coupe: 'Coupe de France', playoffs: 'Playoffs' },
   venues: { home: 'Domicile', away: 'Extérieur', neutral: 'Terrain neutre' },
   venuesShort: { home: 'Dom.', away: 'Ext.', neutral: 'Neutre' },

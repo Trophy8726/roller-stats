@@ -9,6 +9,8 @@ import { t } from '../i18n/fr';
 import { href, navigate } from '../router';
 import { saveLastTeam, todayIso } from '../settings';
 import { formatDate } from '../stats/format';
+import { AccountMenu } from '../ui/AccountMenu';
+import { ClubSwitcher } from '../ui/ClubSwitcher';
 import { SyncChip } from '../ui/SyncChip';
 import type { Team } from '../teams/api';
 import { GoalieRoster } from './GoalieRoster';
@@ -120,11 +122,13 @@ export function Home() {
     <main className="page">
       <header className="topbar">
         <h1>{t.appName}</h1>
+        <ClubSwitcher />
         <span className="topbar__spacer" />
         {pending > 0 && <SyncChip pending={pending} connected={false} />}
         <a className="btn" href={href({ name: 'season' })}>
           {t.nav.season}
         </a>
+        <AccountMenu />
       </header>
       <div className="seg" role="group" aria-label={t.home.tabs}>
         <button type="button" aria-pressed={tab === 'games'} onClick={() => setTab('games')}>
