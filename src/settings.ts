@@ -1,3 +1,4 @@
+import type { User } from './auth/api';
 import type { Membership } from './clubs/api';
 import { normalizeGame } from './domain/normalize';
 import type { Game, Goalie, Period, Role, Side } from './domain/types';
@@ -58,5 +59,10 @@ export const loadMemberships = (userId: string): Membership[] => readJson<Member
 export const saveMemberships = (userId: string, list: Membership[]): void => store.set(`memberships:${userId}`, JSON.stringify(list));
 export const loadCurrentClub = (userId: string): string | null => store.get(`club:${userId}`);
 export const saveCurrentClub = (userId: string, clubId: string): void => store.set(`club:${userId}`, clubId);
+/** The last signed-in user, so the app opens signed in offline when supabase-js cannot refresh an expired token. */
+export const loadCachedUser = (): User | null => readJson<User>('user');
+export const saveCachedUser = (u: User | null): void => store.set('user', u ? JSON.stringify(u) : null);
+/** The session supabase-js keeps under `key`, parsed (null if absent or unreadable). */
+export const loadStoredSession = (key: string): { user?: { id?: unknown } } | null => readJson(key);
 /** Local date (not UTC) as YYYY-MM-DD. */
 export const todayIso = (): string => new Date().toLocaleDateString('sv-SE');

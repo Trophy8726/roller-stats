@@ -1,5 +1,7 @@
 import { act, render, screen } from '@testing-library/react';
-import { authErrorFromUrl, cleanAuthParams } from './api';
+import type { AuthChangeEvent, Session, SupabaseClient } from '@supabase/supabase-js';
+import { authErrorFromUrl, cleanAuthParams, supabaseAuth } from './api';
+import { saveCachedUser } from '../settings';
 import { AuthProvider, useAuth } from './AuthContext';
 import { makeDeps, TEST_USER } from '../test/fakes';
 import { SyncProvider } from '../events/SyncContext';
@@ -53,6 +55,51 @@ describe('AuthProvider', () => {
     expect(await screen.findByText('out:true')).toBeInTheDocument();
     act(() => d.fa.setUser(null));
     expect(screen.getByText('out:true')).toBeInTheDocument();
+  });
+});
+
+describe('AuthProvider over supabase-js (offline cold start)', () => {
+  const KEY = 'sb-test-auth-token';
+  beforeEach(() => localStorage.clear());
+
+  function renderOver(session: Session | null) {
+    let emit: (e: AuthChangeEvent, s: Session | null) => void = () => {};
+    const client = {
+      auth: {
+        getSession: async () => ({ data: { session }, error: null }),
+        onAuthStateChange: (cb: typeof emit) => {
+          emit = cb;
+          return { data: { subscription: { unsubscribe: () => {} } } };
+        },
+      },
+    } as unknown as SupabaseClient;
+    const d = makeDeps({ user: null });
+    d.deps.auth = supabaseAuth(client, KEY);
+    render(
+      <SyncProvider deps={d.deps}>
+        <AuthProvider>
+          <Probe />
+        </AuthProvider>
+      </SyncProvider>,
+    );
+    return { emit: (e: AuthChangeEvent, s: Session | null) => act(() => emit(e, s)) };
+  }
+
+  it('an expired token offline (no session from getSession, INITIAL_SESSION null) keeps the remembered user signed in', async () => {
+    localStorage.setItem(KEY, JSON.stringify({ user: { id: TEST_USER.id } }));
+    saveCachedUser(TEST_USER);
+    const r = renderOver(null);
+    expect(await screen.findByText(`in:${TEST_USER.name}`)).toBeInTheDocument();
+    r.emit('INITIAL_SESSION', null);
+    expect(screen.getByText(`in:${TEST_USER.name}`)).toBeInTheDocument();
+    r.emit('SIGNED_OUT', null);
+    expect(await screen.findByText('out:false')).toBeInTheDocument();
+  });
+
+  it('without a stored session it shows signed out', async () => {
+    saveCachedUser(TEST_USER);
+    renderOver(null);
+    expect(await screen.findByText('out:false')).toBeInTheDocument();
   });
 });
 
