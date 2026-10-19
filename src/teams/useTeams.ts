@@ -20,7 +20,8 @@ export function useTeams(clubId: string | undefined): TeamsState {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const listRef = useRef<Team[]>([]);
-  const alive = useRef(true);
+  /** The club the state belongs to: results for another club are dropped. */
+  const club = useRef(clubId);
 
   const remember = useCallback((list: Team[]) => {
     listRef.current = list;
@@ -28,28 +29,31 @@ export function useTeams(clubId: string | undefined): TeamsState {
   }, []);
 
   const reload = useCallback(async () => {
-    if (!clubId) return;
+    if (!clubId) {
+      setLoading(false);
+      return;
+    }
     try {
       const list = await api.list(clubId);
-      if (!alive.current) return;
+      if (club.current !== clubId) return;
       remember(list);
       setError(false);
     } catch {
-      if (alive.current) setError(true);
+      if (club.current === clubId) setError(true);
     } finally {
-      if (alive.current) setLoading(false);
+      if (club.current === clubId) setLoading(false);
     }
   }, [api, clubId, remember]);
 
   useEffect(() => {
-    alive.current = true;
+    club.current = clubId;
     remember([]);
     setLoading(true);
     void reload();
     return () => {
-      alive.current = false;
+      club.current = undefined;
     };
-  }, [reload, remember]);
+  }, [clubId, reload, remember]);
 
   const replace = useCallback((x: Team) => remember(listRef.current.map((y) => (y.id === x.id ? x : y)).sort(byTeamName)), [remember]);
 
@@ -57,7 +61,7 @@ export function useTeams(clubId: string | undefined): TeamsState {
     async (name: string) => {
       if (!clubId) throw new Error('no club');
       const x = await api.add(clubId, name);
-      if (alive.current) remember([...listRef.current, x].sort(byTeamName));
+      if (club.current === clubId) remember([...listRef.current, x].sort(byTeamName));
       return x;
     },
     [api, clubId, remember],
@@ -65,7 +69,7 @@ export function useTeams(clubId: string | undefined): TeamsState {
   const rename = useCallback(
     async (id: string, name: string) => {
       const x = await api.rename(id, name);
-      if (alive.current) replace(x);
+      if (club.current === x.club_id) replace(x);
       return x;
     },
     [api, replace],
@@ -73,7 +77,7 @@ export function useTeams(clubId: string | undefined): TeamsState {
   const setArchived = useCallback(
     async (id: string, archived: boolean) => {
       const x = await api.setArchived(id, archived);
-      if (alive.current) replace(x);
+      if (club.current === x.club_id) replace(x);
       return x;
     },
     [api, replace],

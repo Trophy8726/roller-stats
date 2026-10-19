@@ -50,7 +50,9 @@ export function supabaseClubs(client: SupabaseClient): ClubsApi {
     async mine(userId) {
       const { data, error } = await client.from('club_members').select('role, clubs(id, name)').eq('user_id', userId);
       if (error) fail(error);
-      return ((data ?? []) as unknown as MembershipRow[]).map((r) => ({ clubId: r.clubs.id, clubName: r.clubs.name, role: r.role })).sort(byClubName);
+      return ((data ?? []) as unknown as (Omit<MembershipRow, 'clubs'> & { clubs: MembershipRow['clubs'] | null })[])
+        .filter((r): r is MembershipRow => r.clubs !== null)
+        .map((r) => ({ clubId: r.clubs.id, clubName: r.clubs.name, role: r.role })).sort(byClubName);
     },
     async create(clubName, teamName) {
       const { data, error } = await client.rpc('create_club', { club_name: clubName.trim(), team_name: teamName.trim() });

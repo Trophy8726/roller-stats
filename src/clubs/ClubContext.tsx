@@ -15,7 +15,7 @@ export interface ClubState {
 
 const Ctx = createContext<ClubState | null>(null);
 
-/** `initial` skips the first server read (tests only). The last list seen is kept on the device for offline starts. */
+/** `initial` gives the first list synchronously (tests); the server list then replaces it. The last list seen is kept on the device for offline starts. */
 export function ClubProvider({ userId, initial, children }: { userId: string; initial?: Membership[]; children: ReactNode }) {
   const { clubs } = useSync();
   const [memberships, setMemberships] = useState<Membership[]>(() => initial ?? loadMemberships(userId));
