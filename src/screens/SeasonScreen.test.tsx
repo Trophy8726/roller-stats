@@ -216,4 +216,13 @@ describe('season view and exports', () => {
     expect(await screen.findByText(t.season.empty)).toBeInTheDocument();
     expect(screen.queryByText(t.season.emptyCompetition)).toBeNull();
   });
+
+  it('only counts the games of the current club', async () => {
+    const d = makeDeps({ games: [gameFx({ code: 'AAAA' }), gameFx({ code: 'BBBB', club_id: 'club-9', opponent: 'Ailleurs' })] });
+    await d.fr.remote.push(shotEv('shot_for', 'goal', { game_code: 'AAAA' }));
+    await d.fr.remote.push(shotEv('shot_for', 'goal', { game_code: 'BBBB' }));
+    renderWithSync(<SeasonScreen />, d.deps);
+    expect(await screen.findByRole('table', { name: t.season.byGame })).toBeInTheDocument();
+    expect(screen.queryByText('Ailleurs')).toBeNull();
+  });
 });

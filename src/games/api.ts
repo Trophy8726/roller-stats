@@ -4,6 +4,8 @@ import type { Competition, Game, SheetSide, Venue } from '../domain/types';
 import { generateCode } from './code';
 
 export interface NewGame {
+  club_id: string;
+  team_id: string;
   team_name: string;
   opponent: string;
   game_date: string;
@@ -18,12 +20,12 @@ export interface NewGame {
 export interface GamesApi {
   create(input: NewGame): Promise<Game>;
   get(code: string): Promise<Game | null>;
-  list(): Promise<Game[]>;
+  list(clubId: string): Promise<Game[]>;
 }
 
 export class ApiError extends Error {}
 
-const COLS = 'code,team_name,opponent,game_date,home,venue,competition,sheet_side,overtime_possible,created_at';
+const COLS = 'code,team_name,opponent,game_date,home,venue,competition,sheet_side,overtime_possible,club_id,team_id,created_at';
 type Row = Parameters<typeof normalizeGame>[0];
 
 export function supabaseGames(client: SupabaseClient, rand: () => number = Math.random): GamesApi {
@@ -42,10 +44,11 @@ export function supabaseGames(client: SupabaseClient, rand: () => number = Math.
       if (error) throw new ApiError(error.message);
       return data ? normalizeGame(data as Row) : null;
     },
-    async list() {
+    async list(clubId) {
       const { data, error } = await client
         .from('games')
         .select(COLS)
+        .eq('club_id', clubId)
         .order('game_date', { ascending: false })
         .order('created_at', { ascending: false });
       if (error) throw new ApiError(error.message);

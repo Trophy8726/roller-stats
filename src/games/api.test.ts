@@ -17,7 +17,7 @@ function fakeClient(results: InsertResult[]) {
 }
 
 const input = {
-  team_name: 'Nous', opponent: 'Rouen', game_date: '2026-09-24', home: true,
+  club_id: 'club-1', team_id: 'team-1', team_name: 'Nous', opponent: 'Rouen', game_date: '2026-09-24', home: true,
   venue: 'home' as const, competition: 'coupe' as const, sheet_side: null, overtime_possible: true,
 };
 
@@ -41,5 +41,20 @@ describe('supabaseGames.get', () => {
     const row = { code: 'AB23', team_name: 'Nous', opponent: 'Rouen', game_date: '2026-09-24', home: false };
     const client = { from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: row, error: null }) }) }) }) } as unknown as SupabaseClient;
     expect(await supabaseGames(client).get('AB23')).toMatchObject({ venue: 'away', competition: 'championnat', overtime_possible: true });
+  });
+});
+
+describe('supabaseGames.list', () => {
+  it('asks for the games of one club', async () => {
+    const eqs: unknown[][] = [];
+    const client = {
+      from: () => ({
+        select: () => ({
+          eq: (...a: unknown[]) => (eqs.push(a), { order: () => ({ order: async () => ({ data: [], error: null }) }) }),
+        }),
+      }),
+    } as unknown as SupabaseClient;
+    expect(await supabaseGames(client).list('club-1')).toEqual([]);
+    expect(eqs).toEqual([['club_id', 'club-1']]);
   });
 });

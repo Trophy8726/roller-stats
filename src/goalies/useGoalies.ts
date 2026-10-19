@@ -17,9 +17,9 @@ export interface GoaliesState {
 }
 
 /** The goalie roster. The last copy seen is kept on the device, so the names are there even without network. */
-export function useGoalies(): GoaliesState {
+export function useGoalies(clubId: string | undefined): GoaliesState {
   const { goalies: api } = useSync();
-  const [goalies, setGoalies] = useState<Goalie[]>(loadCachedGoalies);
+  const [goalies, setGoalies] = useState<Goalie[]>(() => (clubId ? loadCachedGoalies(clubId) : []));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const listRef = useRef(goalies);
@@ -27,13 +27,17 @@ export function useGoalies(): GoaliesState {
 
   const remember = useCallback((list: Goalie[]) => {
     listRef.current = list;
-    saveCachedGoalies(list);
+    if (clubId) saveCachedGoalies(clubId, list);
     setGoalies(list);
-  }, []);
+  }, [clubId]);
 
   const reload = useCallback(async () => {
+    if (!clubId) {
+      setLoading(false);
+      return;
+    }
     try {
-      const list = await api.list();
+      const list = await api.list(clubId);
       if (!alive.current) return;
       remember(list);
       setError(false);
@@ -42,23 +46,25 @@ export function useGoalies(): GoaliesState {
     } finally {
       if (alive.current) setLoading(false);
     }
-  }, [api, remember]);
+  }, [api, remember, clubId]);
 
   useEffect(() => {
     alive.current = true;
+    remember(clubId ? loadCachedGoalies(clubId) : []);
     void reload();
     return () => {
       alive.current = false;
     };
-  }, [reload]);
+  }, [reload, remember, clubId]);
 
   const add = useCallback(
     async (name: string) => {
-      const g = await api.add(name);
+      if (!clubId) throw new Error('no club');
+      const g = await api.add(clubId, name);
       if (alive.current) remember([...listRef.current, g].sort(byName));
       return g;
     },
-    [api, remember],
+    [api, remember, clubId],
   );
 
   const rename = useCallback(

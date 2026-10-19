@@ -67,11 +67,15 @@ export interface Game {
   /** Neutral ground only: are we "domicile" or "visiteur" on the official match sheet. */
   sheet_side: SheetSide | null;
   overtime_possible: boolean;
+  /** v3: the club and team of the game. Absent only from a copy cached on the device by v2. */
+  club_id?: string;
+  team_id?: string;
   created_at?: string;
 }
 
 export interface Goalie {
   id: string;
   name: string;
+  club_id?: string;
   created_at?: string;
 }

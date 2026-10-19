@@ -31,7 +31,7 @@ export function ReportScreen({ code }: { code: string }) {
 
 function Report({ game }: { game: Game }) {
   const { events, pending, connected, loadError, refresh } = useGameEvents(game.code);
-  const { goalies, names, loading: rosterLoading, error: rosterError } = useGoalies();
+  const { goalies, names, loading: rosterLoading, error: rosterError } = useGoalies(game.club_id);
   const stats = useMemo(() => computeGameStats(events), [events]);
   const byDot = useMemo(() => faceoffsByDot(events), [events]);
   const goalieLines = useMemo(

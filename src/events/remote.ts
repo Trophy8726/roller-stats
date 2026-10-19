@@ -5,7 +5,8 @@ import { AGAINST_KINDS, type GameEvent } from '../domain/types';
 export interface Remote {
   push(e: GameEvent): Promise<void>;
   fetchEvents(code: string): Promise<GameEvent[]>;
-  fetchAllEvents(): Promise<GameEvent[]>;
+  /** Live events of these games (the season view). Chunked so the request address stays short. */
+  fetchGamesEvents(codes: string[]): Promise<GameEvent[]>;
   subscribe(code: string, onEvent: (e: GameEvent) => void, onStatus: (connected: boolean) => void): () => void;
   /** Fills the goalie on this game's live shots/CSC/shootout attempts against that have none and are not on an empty net. Returns how many. */
   assignGoalie(code: string, goalieId: string): Promise<number>;
@@ -44,10 +45,17 @@ export function supabaseRemote(client: SupabaseClient): Remote {
         client.from('events').select(COLS).eq('game_code', code).order('id').range(from, from + PAGE - 1),
       );
     },
-    fetchAllEvents() {
-      return pageAll((from) =>
-        client.from('events').select(COLS).is('deleted_at', null).order('id').range(from, from + PAGE - 1),
-      );
+    async fetchGamesEvents(codes) {
+      const out: GameEvent[] = [];
+      for (let i = 0; i < codes.length; i += 100) {
+        const chunk = codes.slice(i, i + 100);
+        out.push(
+          ...(await pageAll((from) =>
+            client.from('events').select(COLS).in('game_code', chunk).is('deleted_at', null).order('id').range(from, from + PAGE - 1),
+          )),
+        );
+      }
+      return out;
     },
     async assignGoalie(code, goalieId) {
       const { data, error } = await client

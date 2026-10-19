@@ -31,7 +31,7 @@ export function initialMode(role: Role): Mode {
 
 export function Recorder({ game, setup, onSetupChange }: { game: Game; setup: RecordSetup; onSetupChange: (s: RecordSetup | null) => void }) {
   const { events, pending, connected, record, remove } = useGameEvents(game.code);
-  const { goalies, names, reload } = useGoalies();
+  const { goalies, names, reload } = useGoalies(game.club_id);
   const [mode, setMode] = useState<Mode>(() => initialMode(setup.role));
   const [tap, setTapState] = useState<Point | null>(null);
   const [dot, setDotState] = useState<DotId | null>(null);

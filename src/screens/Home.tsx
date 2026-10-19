@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { useClub } from '../clubs/ClubContext';
 import { makeGoalieState } from '../domain/factory';
 import type { Competition, Game, SheetSide, Venue } from '../domain/types';
 import { useBackgroundSync, usePendingTotal, useSync } from '../events/SyncContext';
@@ -6,10 +7,12 @@ import { isValidCode, normalizeCode } from '../games/code';
 import { useGoalies } from '../goalies/useGoalies';
 import { t } from '../i18n/fr';
 import { href, navigate } from '../router';
-import { loadTeamName, saveTeamName, todayIso } from '../settings';
+import { saveLastTeam, todayIso } from '../settings';
 import { formatDate } from '../stats/format';
 import { SyncChip } from '../ui/SyncChip';
+import type { Team } from '../teams/api';
 import { GoalieRoster } from './GoalieRoster';
+import { TeamPicker } from './home/TeamPicker';
 
 const COMPETITIONS: Competition[] = ['championnat', 'coupe', 'playoffs'];
 const VENUES: Venue[] = ['home', 'away', 'neutral'];
@@ -22,9 +25,11 @@ type Tab = 'games' | 'goalies';
 
 export function Home() {
   const { games, store } = useSync();
-  const roster = useGoalies();
+  const { current } = useClub();
+  const clubId = current?.clubId ?? '';
+  const roster = useGoalies(clubId || undefined);
   const [tab, setTab] = useState<Tab>('games');
-  const [team, setTeam] = useState(loadTeamName);
+  const [team, setTeam] = useState<Team | null>(null);
   const [opponent, setOpponent] = useState('');
   const [date, setDate] = useState(todayIso);
   const [competition, setCompetition] = useState<Competition>('championnat');
@@ -41,8 +46,9 @@ export function Home() {
   const pending = usePendingTotal();
 
   useEffect(() => {
-    games.list().then(setRecent).catch(() => setError(t.errors.server));
-  }, [games]);
+    if (!clubId) return;
+    games.list(clubId).then(setRecent).catch(() => setError(t.errors.server));
+  }, [games, clubId]);
 
   // Coming back from a game: refresh the backlog count (and try to send it) right away.
   useEffect(() => {
@@ -56,13 +62,15 @@ export function Home() {
 
   async function onCreate(e: FormEvent) {
     e.preventDefault();
-    if (!team.trim() || !opponent.trim()) return;
+    if (!team || !opponent.trim()) return;
     setBusy(true);
     setError(null);
     try {
-      saveTeamName(team.trim());
+      saveLastTeam(clubId, team.id);
       const game = await games.create({
-        team_name: team.trim(),
+        team_name: team.name,
+        club_id: clubId,
+        team_id: team.id,
         opponent: opponent.trim(),
         game_date: date,
         home: venue === 'home',
@@ -150,10 +158,7 @@ export function Home() {
               </div>
             ) : (
               <form className="stack" onSubmit={onCreate}>
-                <label className="field">
-                  {t.home.team}
-                  <input className="input" value={team} onChange={(e) => setTeam(e.target.value)} required maxLength={60} />
-                </label>
+                <TeamPicker clubId={clubId} value={team} onChange={setTeam} />
                 <label className="field">
                   {t.home.opponent}
                   <input className="input" value={opponent} onChange={(e) => setOpponent(e.target.value)} required maxLength={60} />

@@ -1,13 +1,8 @@
 import { gameFx } from './test/builders';
-import { loadCachedGame, loadCachedGoalies, saveCachedGoalies, loadSetup, loadTeamName, saveCachedGame, saveSetup, saveTeamName, todayIso, savePendingInvite, loadPendingInvite, clearPendingInvite, loadMemberships, saveMemberships, loadCurrentClub, saveCurrentClub } from './settings';
+import { loadCachedGame, loadCachedGoalies, saveCachedGoalies, loadLastTeam, saveLastTeam, loadSetup, saveCachedGame, saveSetup, todayIso, savePendingInvite, loadPendingInvite, clearPendingInvite, loadMemberships, saveMemberships, loadCurrentClub, saveCurrentClub } from './settings';
 
 describe('settings', () => {
   beforeEach(() => localStorage.clear());
-  it('remembers the team name', () => {
-    expect(loadTeamName()).toBe('');
-    saveTeamName('Nous');
-    expect(loadTeamName()).toBe('Nous');
-  });
   it('stores the setup per game and can clear it', () => {
     saveSetup('AB23', { role: 'all', defendP1: 'left', period: 2 });
     expect(loadSetup('AB23')).toEqual({ role: 'all', defendP1: 'left', period: 2 });
@@ -27,12 +22,15 @@ describe('settings', () => {
     localStorage.setItem('game:AB23', JSON.stringify({ code: 'AB23', team_name: 'Nous', opponent: 'Rouen', game_date: '2026-09-24', home: false }));
     expect(loadCachedGame('AB23')).toMatchObject({ venue: 'away', competition: 'championnat', sheet_side: null, overtime_possible: true });
   });
-  it('remembers the goalie roster and survives corrupted storage', () => {
-    expect(loadCachedGoalies()).toEqual([]);
-    saveCachedGoalies([{ id: 'g1', name: 'Mallet' }]);
-    expect(loadCachedGoalies()).toEqual([{ id: 'g1', name: 'Mallet' }]);
-    localStorage.setItem('goalies', '{oops');
-    expect(loadCachedGoalies()).toEqual([]);
+  it('keeps the goalie copy and the last team per club', () => {
+    saveCachedGoalies('c1', [{ id: 'g', name: 'Mallet' }]);
+    expect(loadCachedGoalies('c1')).toEqual([{ id: 'g', name: 'Mallet' }]);
+    expect(loadCachedGoalies('c2')).toEqual([]);
+    saveLastTeam('c1', 't1');
+    expect(loadLastTeam('c1')).toBe('t1');
+    expect(loadLastTeam('c2')).toBeNull();
+    localStorage.setItem('goalies:c3', '{oops');
+    expect(loadCachedGoalies('c3')).toEqual([]);
   });
   it('keeps a pending invitation until it is cleared', () => {
     expect(loadPendingInvite()).toBeNull();

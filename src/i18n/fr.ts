@@ -10,6 +10,11 @@ export const t = {
   home: {
     newGame: 'Nouveau match',
     team: 'Notre équipe',
+    newTeam: '+ Nouvelle équipe…',
+    newTeamName: 'Nom de la nouvelle équipe',
+    addTeam: 'Ajouter',
+    teamDuplicate: 'Cette équipe existe déjà dans le club.',
+    noTeam: "Aucune équipe active : ajoutez-en une.",
     opponent: 'Adversaire',
     date: 'Date',
     venue: 'Lieu',
@@ -232,7 +237,7 @@ export const t = {
   },
   errors: {
     loading: 'Chargement…',
-    unknownCode: 'Code inconnu. Vérifiez le code du match.',
+    unknownCode: "Code inconnu, ou match d'un club dont vous n'êtes pas membre.",
     badCode: 'Le code fait 4 caractères (lettres et chiffres).',
     server:
       "Serveur injoignable. Vérifiez la connexion. Si l'équipe n'a pas joué depuis plus de 7 jours, le projet Supabase est peut-être en pause : ouvrez supabase.com, choisissez le projet puis « Restore ».",

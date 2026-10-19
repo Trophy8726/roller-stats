@@ -35,6 +35,6 @@ export function stateEv(kind: StateKind, result: StateResult, opts: Partial<Game
 export function gameFx(opts: Partial<Game> = {}): Game {
   return {
     code: 'AB23', team_name: 'Nous', opponent: 'Rouen', game_date: '2026-09-24', home: true,
-    venue: 'home', competition: 'championnat', sheet_side: null, overtime_possible: true, ...opts,
+    venue: 'home', competition: 'championnat', sheet_side: null, overtime_possible: true, club_id: 'club-1', team_id: 'team-1', ...opts,
   };
 }

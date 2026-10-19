@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SHOT_RESULTS, type Game, type GameEvent } from '../domain/types';
+import { useClub } from '../clubs/ClubContext';
 import { useSync } from '../events/SyncContext';
 import { t } from '../i18n/fr';
 import { Legend } from '../rink/Legend';
@@ -22,26 +23,30 @@ const sideLabel = (s: SideFilter) => (s === 'both' ? t.report.both : s === 'for'
 
 export function SeasonScreen() {
   const { games, remote } = useSync();
+  const { current } = useClub();
+  const clubId = current?.clubId;
   const [data, setData] = useState<{ games: Game[]; events: GameEvent[] } | null>(null);
   const [error, setError] = useState(false);
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [side, setSide] = useState<SideFilter>('both');
 
   const load = useCallback(async () => {
+    if (!clubId) return;
     setError(false);
     try {
-      const [g, e] = await Promise.all([games.list(), remote.fetchAllEvents()]);
+      const g = await games.list(clubId);
+      const e = await remote.fetchGamesEvents(g.map((x) => x.code));
       setData({ games: g, events: e });
     } catch {
       setError(true);
     }
-  }, [games, remote]);
+  }, [games, remote, clubId]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const { names } = useGoalies();
+  const { names } = useGoalies(clubId);
   const [competition, setCompetition] = useState<CompetitionFilter>('championnat');
   const season = useMemo(() => (data ? computeSeasonStats(data.games, data.events, excluded, competition) : null), [data, excluded, competition]);
   const includedCodes = useMemo(() => new Set(season?.rows.filter((r) => r.included).map((r) => r.game.code)), [season]);

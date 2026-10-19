@@ -39,8 +39,6 @@ function readJson<T>(k: string): T | null {
   }
 }
 
-export const loadTeamName = (): string => store.get('teamName') ?? '';
-export const saveTeamName = (n: string): void => store.set('teamName', n);
 export const loadSetup = (code: string): RecordSetup | null => readJson<RecordSetup>(`setup:${code}`);
 export const saveSetup = (code: string, s: RecordSetup | null): void => store.set(`setup:${code}`, s ? JSON.stringify(s) : null);
 export const loadCachedGame = (code: string): Game | null => {
@@ -48,8 +46,10 @@ export const loadCachedGame = (code: string): Game | null => {
   return g ? normalizeGame(g) : null;
 };
 export const saveCachedGame = (g: Game): void => store.set(`game:${g.code}`, JSON.stringify(g));
-export const loadCachedGoalies = (): Goalie[] => readJson<Goalie[]>('goalies') ?? [];
-export const saveCachedGoalies = (g: Goalie[]): void => store.set('goalies', JSON.stringify(g));
+export const loadCachedGoalies = (clubId: string): Goalie[] => readJson<Goalie[]>(`goalies:${clubId}`) ?? [];
+export const saveCachedGoalies = (clubId: string, g: Goalie[]): void => store.set(`goalies:${clubId}`, JSON.stringify(g));
+export const loadLastTeam = (clubId: string): string | null => store.get(`lastTeam:${clubId}`);
+export const saveLastTeam = (clubId: string, teamId: string): void => store.set(`lastTeam:${clubId}`, teamId);
 /** An invitation opened while signed out: kept across the Google round trip, then cleared once used. */
 export const savePendingInvite = (token: string): void => store.set('pendingInvite', token);
 export const loadPendingInvite = (): string | null => store.get('pendingInvite');

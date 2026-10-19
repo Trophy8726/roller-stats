@@ -5,12 +5,12 @@ import type { Goalie } from '../domain/types';
 export class DuplicateGoalieError extends Error {}
 
 export interface GoaliesApi {
-  list(): Promise<Goalie[]>;
-  add(name: string): Promise<Goalie>;
+  list(clubId: string): Promise<Goalie[]>;
+  add(clubId: string, name: string): Promise<Goalie>;
   rename(id: string, name: string): Promise<Goalie>;
 }
 
-const COLS = 'id,name,created_at';
+const COLS = 'id,name,club_id,created_at';
 const byName = (a: Goalie, b: Goalie) => a.name.localeCompare(b.name, 'fr');
 const fail = (e: { code?: string; message: string }): never => {
   throw e.code === '23505' ? new DuplicateGoalieError(e.message) : new Error(e.message);
@@ -18,13 +18,13 @@ const fail = (e: { code?: string; message: string }): never => {
 
 export function supabaseGoalies(client: SupabaseClient): GoaliesApi {
   return {
-    async list() {
-      const { data, error } = await client.from('goalies').select(COLS);
+    async list(clubId) {
+      const { data, error } = await client.from('goalies').select(COLS).eq('club_id', clubId);
       if (error) fail(error);
       return ((data ?? []) as Goalie[]).sort(byName);
     },
-    async add(name) {
-      const { data, error } = await client.from('goalies').insert({ name: name.trim() }).select(COLS).single();
+    async add(clubId, name) {
+      const { data, error } = await client.from('goalies').insert({ club_id: clubId, name: name.trim() }).select(COLS).single();
       if (error) fail(error);
       return data as Goalie;
     },

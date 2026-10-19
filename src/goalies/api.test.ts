@@ -6,20 +6,20 @@ const dup = { code: '23505', message: 'duplicate key' };
 
 describe('supabaseGoalies', () => {
   it('lists goalies sorted by name', async () => {
-    const client = asClient(() => ({ select: async () => ({ data: [{ id: '2', name: 'Zoé' }, { id: '1', name: 'Alain' }], error: null }) }));
-    expect((await supabaseGoalies(client).list()).map((g) => g.name)).toEqual(['Alain', 'Zoé']);
+    const client = asClient(() => ({ select: () => ({ eq: async () => ({ data: [{ id: '2', name: 'Zoé' }, { id: '1', name: 'Alain' }], error: null }) }) }));
+    expect((await supabaseGoalies(client).list('club-1')).map((g) => g.name)).toEqual(['Alain', 'Zoé']);
   });
   it('adds a goalie with a trimmed name', async () => {
     const rows: unknown[] = [];
     const client = asClient(() => ({
       insert: (row: { name: string }) => (rows.push(row), { select: () => ({ single: async () => ({ data: { id: '1', name: row.name }, error: null }) }) }),
     }));
-    expect(await supabaseGoalies(client).add('  François Mallet ')).toEqual({ id: '1', name: 'François Mallet' });
-    expect(rows).toEqual([{ name: 'François Mallet' }]);
+    expect(await supabaseGoalies(client).add('club-1', '  François Mallet ')).toEqual({ id: '1', name: 'François Mallet' });
+    expect(rows).toEqual([{ club_id: 'club-1', name: 'François Mallet' }]);
   });
   it('reports a duplicate name with its own error', async () => {
     const client = asClient(() => ({ insert: () => ({ select: () => ({ single: async () => ({ data: null, error: dup }) }) }) }));
-    await expect(supabaseGoalies(client).add('Mallet')).rejects.toBeInstanceOf(DuplicateGoalieError);
+    await expect(supabaseGoalies(client).add('club-1', 'Mallet')).rejects.toBeInstanceOf(DuplicateGoalieError);
   });
   it('renames a goalie, and reports a duplicate too', async () => {
     const ok = asClient(() => ({ update: (v: { name: string }) => ({ eq: () => ({ select: () => ({ single: async () => ({ data: { id: '1', name: v.name }, error: null }) }) }) }) }));
@@ -28,7 +28,7 @@ describe('supabaseGoalies', () => {
     await expect(supabaseGoalies(clash).rename('1', 'X')).rejects.toBeInstanceOf(DuplicateGoalieError);
   });
   it('throws on any other error', async () => {
-    const client = asClient(() => ({ select: async () => ({ data: null, error: { code: '42501', message: 'denied' } }) }));
-    await expect(supabaseGoalies(client).list()).rejects.toThrow('denied');
+    const client = asClient(() => ({ select: () => ({ eq: async () => ({ data: null, error: { code: '42501', message: 'denied' } }) }) }));
+    await expect(supabaseGoalies(client).list('club-1')).rejects.toThrow('denied');
   });
 });

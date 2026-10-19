@@ -8,7 +8,7 @@ import { useGoalies } from './useGoalies';
 function setup(goalies = [{ id: 'g1', name: 'Mallet' }]) {
   const d = makeDeps({ goalies });
   const wrapper = ({ children }: { children: ReactNode }) => <SyncProvider deps={d.deps}>{children}</SyncProvider>;
-  return { ...d, ...renderHook(() => useGoalies(), { wrapper }) };
+  return { ...d, ...renderHook(() => useGoalies('club-1'), { wrapper }) };
 }
 
 describe('useGoalies', () => {
@@ -28,7 +28,7 @@ describe('useGoalies', () => {
       await result.current.add('Bernard');
     });
     expect(result.current.goalies.map((g) => g.name)).toEqual(['Bernard', 'Mallet']);
-    expect(JSON.parse(localStorage.getItem('goalies') ?? '[]')).toHaveLength(2);
+    expect(JSON.parse(localStorage.getItem('goalies:club-1') ?? '[]')).toHaveLength(2);
   });
 
   it('refuses a name already in the list, whatever the case or spacing', async () => {
@@ -50,12 +50,27 @@ describe('useGoalies', () => {
   });
 
   it('falls back to the remembered roster when the server is down', async () => {
-    localStorage.setItem('goalies', JSON.stringify([{ id: 'g9', name: 'Cache' }]));
+    localStorage.setItem('goalies:club-1', JSON.stringify([{ id: 'g9', name: 'Cache' }]));
     const d = makeDeps({ goalies: [] });
     d.fgo.setFailing(true);
     const wrapper = ({ children }: { children: ReactNode }) => <SyncProvider deps={d.deps}>{children}</SyncProvider>;
-    const { result } = renderHook(() => useGoalies(), { wrapper });
+    const { result } = renderHook(() => useGoalies('club-1'), { wrapper });
     await waitFor(() => expect(result.current.error).toBe(true));
     expect(result.current.goalies).toEqual([{ id: 'g9', name: 'Cache' }]);
+  });
+
+  it('keeps a separate device copy per club', async () => {
+    const { result } = setup();
+    await waitFor(() => expect(result.current.goalies).toHaveLength(1));
+    expect(JSON.parse(localStorage.getItem('goalies:club-1') ?? '[]')).toHaveLength(1);
+    expect(localStorage.getItem('goalies:club-2')).toBeNull();
+  });
+
+  it('loads nothing without a club', async () => {
+    const d = makeDeps({ goalies: [{ id: 'g1', name: 'Mallet', club_id: 'club-1' }] });
+    const wrapper = ({ children }: { children: ReactNode }) => <SyncProvider deps={d.deps}>{children}</SyncProvider>;
+    const { result } = renderHook(() => useGoalies(undefined), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.goalies).toEqual([]);
   });
 });

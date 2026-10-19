@@ -72,3 +72,24 @@ describe('supabaseRemote.assignGoalie', () => {
     await expect(supabaseRemote(client).assignGoalie('AB23', 'g1')).rejects.toThrow('denied');
   });
 });
+
+describe('supabaseRemote.fetchGamesEvents', () => {
+  it('fetches the events of the given games only, nothing for an empty list', async () => {
+    const calls: string[][] = [];
+    const client = {
+      from: () => ({
+        select: () => ({
+          in: (_col: string, codes: string[]) => {
+            calls.push(codes);
+            return { is: () => ({ order: () => ({ range: async () => ({ data: [], error: null }) }) }) };
+          },
+        }),
+      }),
+    } as unknown as SupabaseClient;
+    const r = supabaseRemote(client);
+    expect(await r.fetchGamesEvents([])).toEqual([]);
+    expect(calls).toEqual([]);
+    await r.fetchGamesEvents(['AAAA', 'BBBB']);
+    expect(calls).toEqual([['AAAA', 'BBBB']]);
+  });
+});

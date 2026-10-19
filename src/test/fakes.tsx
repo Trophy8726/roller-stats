@@ -32,9 +32,9 @@ export function fakeRemote() {
       guard();
       return [...rows.values()].filter((r) => r.game_code === code);
     },
-    async fetchAllEvents() {
+    async fetchGamesEvents(codes) {
       guard();
-      return [...rows.values()].filter((r) => !r.deleted_at);
+      return [...rows.values()].filter((r) => codes.includes(r.game_code) && !r.deleted_at);
     },
     subscribe(code, onEvent, onStatus) {
       const l = (e: GameEvent) => {
@@ -83,9 +83,9 @@ export function fakeGames(initial: Game[] = []) {
       guard();
       return games.find((g) => g.code === code) ?? null;
     },
-    async list() {
+    async list(clubId) {
       guard();
-      return [...games];
+      return games.filter((g) => !g.club_id || g.club_id === clubId);
     },
   };
   return { api, games, setFailing: (v: boolean) => (failing = v) };
@@ -101,14 +101,14 @@ export function fakeGoalies(initial: Goalie[] = []) {
   const clash = (name: string, except?: string) =>
     list.some((g) => g.id !== except && g.name.trim().toLowerCase() === name.trim().toLowerCase());
   const api: GoaliesApi = {
-    async list() {
+    async list(clubId) {
       guard();
-      return [...list].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+      return list.filter((g) => !g.club_id || g.club_id === clubId).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
     },
-    async add(name) {
+    async add(clubId, name) {
       guard();
       if (clash(name)) throw new DuplicateGoalieError('duplicate');
-      const g = { id: `goalie-${++n}`, name: name.trim() };
+      const g = { id: `goalie-${++n}`, name: name.trim(), club_id: clubId };
       list.push(g);
       return { ...g };
     },

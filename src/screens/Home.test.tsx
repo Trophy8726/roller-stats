@@ -38,13 +38,54 @@ describe('Home', () => {
     expect(await screen.findByText(t.errors.badCode)).toBeInTheDocument();
   });
 
-  it('creates a game, shows its code and remembers the team name', async () => {
-    renderHome([]);
-    await userEvent.type(screen.getByLabelText(t.home.team), 'Nous');
+  it('creates a game for the chosen team and remembers it', async () => {
+    const d = renderHome([]);
+    const picker = await screen.findByLabelText(t.home.team);
+    await waitFor(() => expect(picker).toHaveValue('team-1'));
     await userEvent.type(screen.getByLabelText(t.home.opponent), 'Rouen');
     await userEvent.click(screen.getByRole('button', { name: t.home.create }));
     expect(await screen.findByText('K7QX')).toBeInTheDocument();
-    expect(localStorage.getItem('teamName')).toBe('Nous');
+    expect(d.fg.games[0]).toMatchObject({ club_id: 'club-1', team_id: 'team-1', team_name: 'N2', opponent: 'Rouen' });
+    expect(localStorage.getItem('lastTeam:club-1')).toBe('team-1');
+  });
+
+  it('adds a team on the spot and selects it', async () => {
+    renderHome([]);
+    const picker = await screen.findByLabelText(t.home.team);
+    await userEvent.selectOptions(picker, t.home.newTeam);
+    await userEvent.type(screen.getByLabelText(t.home.newTeamName), 'U17');
+    await userEvent.click(screen.getByRole('button', { name: t.home.addTeam }));
+    await waitFor(() => expect(screen.getByRole('option', { name: 'U17' })).toBeInTheDocument());
+    expect((screen.getByLabelText(t.home.team) as HTMLSelectElement).selectedOptions[0].text).toBe('U17');
+  });
+
+  it('refuses a team name the club already has', async () => {
+    renderHome([]);
+    await userEvent.selectOptions(await screen.findByLabelText(t.home.team), t.home.newTeam);
+    await userEvent.type(screen.getByLabelText(t.home.newTeamName), ' n2 ');
+    await userEvent.click(screen.getByRole('button', { name: t.home.addTeam }));
+    expect(await screen.findByText(t.home.teamDuplicate)).toBeInTheDocument();
+  });
+
+  it('skips an archived remembered team', async () => {
+    localStorage.setItem('lastTeam:club-1', 'team-old');
+    const d = makeDeps({
+      games: [],
+      teams: [
+        { id: 'team-old', club_id: 'club-1', name: 'N3', archived_at: '2026-01-01T00:00:00Z' },
+        { id: 'team-1', club_id: 'club-1', name: 'N2', archived_at: null },
+      ],
+    });
+    renderWithSync(<Home />, d.deps);
+    const picker = await screen.findByLabelText(t.home.team);
+    await waitFor(() => expect(picker).toHaveValue('team-1'));
+    expect(screen.queryByRole('option', { name: 'N3' })).toBeNull();
+  });
+
+  it('lists only the games of the current club', async () => {
+    renderHome([gameFx({ code: 'K7QX', opponent: 'Caen' }), gameFx({ code: 'ZZZZ', opponent: 'Paris', club_id: 'club-9' })]);
+    expect(await screen.findByText('Caen')).toBeInTheDocument();
+    expect(screen.queryByText('Paris')).toBeNull();
   });
 
   it('explains when the server is unreachable', async () => {
@@ -83,7 +124,8 @@ describe('Home v2', () => {
   });
 
   async function fillNames() {
-    await userEvent.type(screen.getByLabelText(t.home.team), 'Nous');
+    const picker = await screen.findByLabelText(t.home.team);
+    await waitFor(() => expect(picker).toHaveValue('team-1'));
     await userEvent.type(screen.getByLabelText(t.home.opponent), 'Rouen');
   }
 
