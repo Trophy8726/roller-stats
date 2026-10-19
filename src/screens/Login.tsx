@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { t } from '../i18n/fr';
 import { savePendingInvite } from '../settings';
@@ -7,6 +7,13 @@ export function Login({ error, inviteToken }: { error: boolean; inviteToken: str
   const { api } = useAuth();
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(error);
+
+  // Coming back with the Back button restores the page from the bfcache with busy still set.
+  useEffect(() => {
+    const reset = () => setBusy(false);
+    window.addEventListener('pageshow', reset);
+    return () => window.removeEventListener('pageshow', reset);
+  }, []);
 
   async function signIn() {
     if (inviteToken) savePendingInvite(inviteToken);

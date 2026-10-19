@@ -27,7 +27,13 @@ export function AuthProvider({ initialUser, children }: { initialUser?: User | n
         if (alive) setState({ status: 'signedOut', error: false });
       });
     const off = auth.onChange((u) => {
-      if (alive) setState((prev) => (prev.status === 'signedIn' && u && prev.user.id === u.id ? prev : fromUser(u)));
+      if (!alive) return;
+      setState((prev) => {
+        if (prev.status === 'signedIn' && u && prev.user.id === u.id) return prev;
+        // supabase-js emits INITIAL_SESSION (null) after current() resolved: keep the failure flag.
+        if (!u && prev.status === 'signedOut') return prev;
+        return fromUser(u);
+      });
     });
     return () => {
       alive = false;

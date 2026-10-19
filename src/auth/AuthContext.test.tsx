@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { authErrorFromUrl, cleanAuthParams } from './api';
 import { AuthProvider, useAuth } from './AuthContext';
 import { makeDeps, TEST_USER } from '../test/fakes';
@@ -45,6 +45,14 @@ describe('AuthProvider', () => {
     expect(await screen.findByText('out:true')).toBeInTheDocument();
     expect(window.location.search).toBe('');
     expect(window.location.hash).toBe('#/');
+  });
+
+  it('keeps the failure flag when the initial auth event reports no session', async () => {
+    window.history.replaceState(null, '', '/roller-stats/?error=access_denied#/');
+    const d = renderProbe(null);
+    expect(await screen.findByText('out:true')).toBeInTheDocument();
+    act(() => d.fa.setUser(null));
+    expect(screen.getByText('out:true')).toBeInTheDocument();
   });
 });
 
