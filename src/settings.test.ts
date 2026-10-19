@@ -1,5 +1,5 @@
 import { gameFx } from './test/builders';
-import { loadCachedGame, loadCachedGoalies, saveCachedGoalies, loadSetup, loadTeamName, saveCachedGame, saveSetup, saveTeamName, todayIso, savePendingInvite, loadPendingInvite, clearPendingInvite } from './settings';
+import { loadCachedGame, loadCachedGoalies, saveCachedGoalies, loadSetup, loadTeamName, saveCachedGame, saveSetup, saveTeamName, todayIso, savePendingInvite, loadPendingInvite, clearPendingInvite, loadMemberships, saveMemberships, loadCurrentClub, saveCurrentClub } from './settings';
 
 describe('settings', () => {
   beforeEach(() => localStorage.clear());
@@ -43,4 +43,13 @@ describe('settings', () => {
     expect(loadPendingInvite()).toBeNull();
   });
   it('gives today as YYYY-MM-DD', () => expect(todayIso()).toMatch(/^\d{4}-\d{2}-\d{2}$/));
+  it('keeps the memberships and the current club per account', () => {
+    expect(loadMemberships('u1')).toEqual([]);
+    saveMemberships('u1', [{ clubId: 'c', clubName: 'Aix', role: 'owner' }]);
+    expect(loadMemberships('u1')).toEqual([{ clubId: 'c', clubName: 'Aix', role: 'owner' }]);
+    expect(loadMemberships('u2')).toEqual([]);
+    saveCurrentClub('u1', 'c');
+    expect(loadCurrentClub('u1')).toBe('c');
+    expect(loadCurrentClub('u2')).toBeNull();
+  });
 });

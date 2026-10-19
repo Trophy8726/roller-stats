@@ -1,3 +1,4 @@
+import type { Membership } from './clubs/api';
 import { normalizeGame } from './domain/normalize';
 import type { Game, Goalie, Period, Role, Side } from './domain/types';
 
@@ -53,5 +54,9 @@ export const saveCachedGoalies = (g: Goalie[]): void => store.set('goalies', JSO
 export const savePendingInvite = (token: string): void => store.set('pendingInvite', token);
 export const loadPendingInvite = (): string | null => store.get('pendingInvite');
 export const clearPendingInvite = (): void => store.set('pendingInvite', null);
+export const loadMemberships = (userId: string): Membership[] => readJson<Membership[]>(`memberships:${userId}`) ?? [];
+export const saveMemberships = (userId: string, list: Membership[]): void => store.set(`memberships:${userId}`, JSON.stringify(list));
+export const loadCurrentClub = (userId: string): string | null => store.get(`club:${userId}`);
+export const saveCurrentClub = (userId: string, clubId: string): void => store.set(`club:${userId}`, clubId);
 /** Local date (not UTC) as YYYY-MM-DD. */
 export const todayIso = (): string => new Date().toLocaleDateString('sv-SE');

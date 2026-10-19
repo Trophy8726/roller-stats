@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from 'react';
 import { supabaseAuth, type AuthApi } from '../auth/api';
+import { supabaseClubs, type ClubsApi } from '../clubs/api';
+import { supabaseTeams, type TeamsApi } from '../teams/api';
 import { supabaseGoalies, type GoaliesApi } from '../goalies/api';
 import { supabaseGames, type GamesApi } from '../games/api';
 import { supabase } from '../lib/supabase';
@@ -14,6 +16,8 @@ export interface SyncDeps {
   games: GamesApi;
   goalies: GoaliesApi;
   auth: AuthApi;
+  clubs: ClubsApi;
+  teams: TeamsApi;
 }
 
 const Ctx = createContext<SyncDeps | null>(null);
@@ -56,5 +60,7 @@ export function defaultSyncDeps(): SyncDeps {
     games: supabaseGames(supabase),
     goalies: supabaseGoalies(supabase),
     auth: supabaseAuth(supabase),
+    clubs: supabaseClubs(supabase),
+    teams: supabaseTeams(supabase),
   };
 }
