@@ -50,7 +50,8 @@ export function TurnoverCard({ events, title, leftLabel, rightLabel, periods }: 
         <p className="print-only">{t.report.mapFilterCaption(periodText, filterLabel(which))}</p>
       )}
       <Rink attackRight leftLabel={leftLabel} rightLabel={rightLabel} markers={markers} />
-      <Legend results={TURNOVER_RESULTS} counts={counts} />
+      {/* Only the results in view: a filtered-out result shown as 0 would be wrong on a printed report. */}
+      <Legend results={which === 'both' ? TURNOVER_RESULTS : [which]} counts={counts} />
     </section>
   );
 }

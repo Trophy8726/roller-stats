@@ -40,14 +40,14 @@ Never a turnover, either way: shots and their rebounds, faceoffs, dump-ins (« e
 
 - New event kind `turnover`, results `lost` | `recovered`. Coordinates x, y required (normalized like shots: our attack goes right), `dot` null, `goalie_id` null, `penalty_shot` false, `empty_net` false. `strength` stamped like every other event.
 - New device role `turnovers`.
-- Migration `supabase/migration-v3b.sql`: rebuild `event_shape` with the turnover clause; replace the `device_role` check (inline on the column in schema.sql, so Postgres named it `events_device_role_check` — the migration checks the name) to allow `turnovers`. Applied on staging first, on production only after the v3 cut-over and on the user's request.
+- Migration `supabase/migration-v3b.sql`: widen `events_kind_check` (from migration-v2) to allow `turnover`; rebuild `event_shape` with the turnover clause; replace the `device_role` check (inline on the column in schema.sql, so Postgres named it `events_device_role_check`) to allow `turnovers`. Applied on staging first, on production only after the v3 cut-over and on the user's request. A unit test (`src/domain/sqlChecks.test.ts`) checks that the migrations allow every kind and role the app sends.
 
 ### Recording
 
 - Tabs, in order: **Tir pour · Tir contre · Turnover · Engagement · Divers**. The « Tout » role sees all of them.
 - Role list in the setup panel: Tirs pour · Tirs contre · **Turnover** · Engagements · Tout. The Turnover role sees **Turnover · Divers**, like the other single roles.
 - In the Turnover tab: tap the rink, then **Perdu** / **Récupéré** / Annuler. The rink shows the turnovers of the current period, as the shot tabs do. Hint text: « Touchez l'endroit de la perte ou de la récupération ».
-- Recent list and undo work as for every event (« Turnover perdu · P1 », « Turnover récupéré · P2 »).
+- Recent list and undo work as for every event (« P1 · Turnover · Perdu », « P2 · Turnover · Récupéré », the same format as every other entry).
 
 ### Markers
 
@@ -56,7 +56,7 @@ Never a turnover, either way: shots and their rebounds, faceoffs, dump-ins (« e
 
 ### Game report
 
-- A new « Turnovers » card after the shot map: rink with all turnovers, period filter (Tout / P1 / P2 / Prol.) and a Perdu / Récupéré / Les deux filter, a legend with the count for each result.
+- A new « Turnovers » card after the shot map: rink with all turnovers, period filter (Tout / P1 / P2 / Prol.) and a Perdu / Récupéré / Les deux filter, a legend with the count for each result in view (a filtered-out result is left out, never shown as 0).
 - The shot map filter (`filterShotMarkers`) is narrowed to `shot_for` / `shot_against` — today it takes every kind except faceoff, so turnovers would leak into it.
 
 ### Season report

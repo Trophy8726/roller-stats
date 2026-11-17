@@ -1,7 +1,12 @@
 -- Roller Stats v3b migration: turnovers (lost / recovered puck during play) and the « Turnover » tablet role.
 -- Supabase dashboard → SQL Editor → New query → paste → Run. Run ONCE, after migration-v3a.sql.
--- Only widens two checks: apps that do not know turnovers yet keep working.
+-- Only widens three checks: apps that do not know turnovers yet keep working.
 begin;
+
+alter table public.events drop constraint events_kind_check;
+alter table public.events add constraint events_kind_check check (kind in (
+  'shot_for','shot_against','turnover','faceoff','own_goal_for','own_goal_against',
+  'shootout_for','shootout_against','note','state_our_goalie','state_their_net','state_strength'));
 
 alter table public.events drop constraint event_shape;
 alter table public.events add constraint event_shape check (

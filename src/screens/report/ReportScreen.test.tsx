@@ -218,7 +218,9 @@ describe('turnovers on the report', () => {
     await waitFor(() => expect(dots()).toBe(3));
     fireEvent.click(within(card()).getByRole('button', { name: t.report.lost }));
     expect(dots()).toBe(2);
-    expect(within(card()).getByText(`${t.results.recovered} · 0`)).toBeInTheDocument();
+    // The filtered-out result is left out of the legend, never shown as 0 (a printed report must not say "0 recovered").
+    expect(within(card()).getByText(`${t.results.lost} · 2`)).toBeInTheDocument();
+    expect(within(card()).queryByText(`${t.results.recovered} ·`, { exact: false })).toBeNull();
     fireEvent.click(within(card()).getByRole('button', { name: t.report.both }));
     fireEvent.click(within(card()).getByRole('button', { name: 'P2' }));
     expect(dots()).toBe(1);

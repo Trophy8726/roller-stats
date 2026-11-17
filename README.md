@@ -46,7 +46,8 @@ Spec: `docs/superpowers/specs/2026-11-17-turnovers-design.md`. Plan: `docs/super
 ### Release order
 
 1. The v3 production cut-over above is done.
-2. SQL Editor (production): run `supabase/migration-v3b.sql`.
-3. Merge `feat/turnovers` into `main` and push.
+2. Staging first: run `supabase/migration-v3b.sql` there, then `npm run smoke`: every line must say `OK`, including the three turnover checks.
+3. SQL Editor (production): run `supabase/migration-v3b.sql`.
+4. Only then merge `feat/turnovers` into `main` and push. Deployed before the migration, the app would send turnovers the database refuses, and a refused entry holds back every later entry of that tablet.
 
 A tablet still running the previous version can show turnovers on its shot map until the app reloads.
