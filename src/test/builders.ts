@@ -1,4 +1,4 @@
-import type { DotId, FaceoffResult, Game, GameEvent, Kind, OpenShotResult, ShotKind, ShotResult, StateKind, StateResult } from '../domain/types';
+import type { DotId, FaceoffResult, Game, GameEvent, Kind, OpenShotResult, ShotKind, ShotResult, StateKind, StateResult, TurnoverResult } from '../domain/types';
 
 let seq = 0;
 const at = () => new Date(Date.UTC(2026, 8, 24, 18, 0, ++seq)).toISOString();
@@ -27,6 +27,9 @@ export function shootoutEv(kind: 'shootout_for' | 'shootout_against', result: Op
 }
 export function noteEv(text: string, opts: Partial<GameEvent> = {}): GameEvent {
   return blank('note', 'note', { note: text, ...opts });
+}
+export function turnoverEv(result: TurnoverResult, opts: Partial<GameEvent> = {}): GameEvent {
+  return blank('turnover', result, { x: 0.5, y: 0.5, ...opts });
 }
 export function stateEv(kind: StateKind, result: StateResult, opts: Partial<GameEvent> = {}): GameEvent {
   return blank(kind, result, opts);

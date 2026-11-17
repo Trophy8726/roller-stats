@@ -2,7 +2,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import type { Game, Goalie, Role } from '../../domain/types';
 import { t } from '../../i18n/fr';
 import { saveSetup, type RecordSetup } from '../../settings';
-import { gameFx, stateEv } from '../../test/builders';
+import { gameFx, shotEv, stateEv, turnoverEv } from '../../test/builders';
 import { makeDeps, renderWithSync } from '../../test/fakes';
 import { RecordScreen } from './RecordScreen';
 
@@ -159,6 +159,82 @@ describe('RecordScreen', () => {
     await tapRink(40, 100);
     fireEvent.click(screen.getByRole('button', { name: t.results.blocked }));
     expect(await screen.findByText(`P1 · ${t.modes.shot_against} · ${t.results.blocked}`)).toBeInTheDocument();
+  });
+});
+
+describe('the Turnover tab', () => {
+  beforeEach(() => localStorage.clear());
+  const modeTabs = async () =>
+    within(await screen.findByRole('group', { name: t.record.modeLabel })).getAllByRole('button').map((b) => b.textContent);
+
+  it('records a turnover once, even if Perdu is tapped twice', async () => {
+    const d = renderRecord();
+    fireEvent.click(await screen.findByRole('button', { name: t.modes.turnover }));
+    expect(screen.getByText(t.record.tapTurnover)).toBeInTheDocument();
+    await tapRink(100, 50);
+    const lost = screen.getByRole('button', { name: t.results.lost });
+    // Same double-tap guard as for shots (see the shot test above for why act() wraps two raw clicks).
+    act(() => {
+      lost.click();
+      lost.click();
+    });
+    await waitFor(async () => expect((await d.deps.store.load('AB23')).filter((e) => !e.deleted_at)).toHaveLength(1));
+    expect((await d.deps.store.load('AB23'))[0]).toMatchObject({ kind: 'turnover', result: 'lost', period: 1, x: 0.25, y: 0.25, device_role: 'all' });
+  });
+
+  it('sits between Tir contre and Engagement', async () => {
+    renderRecord();
+    expect(await modeTabs()).toEqual([t.modes.shot_for, t.modes.shot_against, t.modes.turnover, t.modes.faceoff, t.misc.tab]);
+  });
+
+  it('a Turnover tracker sees only Turnover and Divers, and records Récupéré', async () => {
+    renderRecord('turnovers');
+    expect(await modeTabs()).toEqual([t.modes.turnover, t.misc.tab]);
+    await tapRink(300, 100);
+    fireEvent.click(screen.getByRole('button', { name: t.results.recovered }));
+    expect(await screen.findByText(`P1 · ${t.kinds.turnover} · ${t.results.recovered}`)).toBeInTheDocument();
+  });
+
+  it('drops a pending turnover tap when the tab changes', async () => {
+    const d = renderRecord();
+    fireEvent.click(await screen.findByRole('button', { name: t.modes.turnover }));
+    await tapRink(100, 50);
+    fireEvent.click(screen.getByRole('button', { name: t.modes.shot_for }));
+    expect(screen.queryByRole('button', { name: t.results.goal })).toBeNull();
+    expect(screen.queryByRole('button', { name: t.results.lost })).toBeNull();
+    expect(await d.deps.store.load('AB23')).toHaveLength(0);
+  });
+
+  it('stores a period-2 turnover with the flipped orientation', async () => {
+    const d = renderWith({ setup: { period: 2 } });
+    fireEvent.click(await screen.findByRole('button', { name: t.modes.turnover }));
+    // P2 with defendP1 'left': we attack left, so a tap a quarter from the left is stored three quarters along.
+    await tapRink(100, 100);
+    fireEvent.click(screen.getByRole('button', { name: t.results.lost }));
+    await waitFor(async () => expect(await d.deps.store.load('AB23')).toHaveLength(1));
+    expect((await d.deps.store.load('AB23'))[0]).toMatchObject({ kind: 'turnover', period: 2, x: 0.75, y: 0.5 });
+  });
+
+  it('shows the turnovers of the current period on its rink, not the shots', async () => {
+    const d = makeDeps({ games: [gameFx()] });
+    saveSetup('AB23', { role: 'all', defendP1: 'left', period: 1 });
+    d.fr.rows.set('s1', shotEv('shot_for', 'goal', { id: 's1' }));
+    d.fr.rows.set('t1', turnoverEv('recovered', { id: 't1' }));
+    d.fr.rows.set('t2', turnoverEv('lost', { id: 't2', period: 2 }));
+    const { container } = renderWithSync(<RecordScreen code="AB23" />, d.deps);
+    fireEvent.click(await screen.findByRole('button', { name: t.modes.turnover }));
+    await waitFor(() => expect(container.querySelectorAll('[data-result="recovered"]')).toHaveLength(1));
+    expect(container.querySelector('[data-result="goal"]')).toBeNull();
+    expect(container.querySelector('[data-result="lost"]')).toBeNull();
+  });
+
+  it('offers the Turnover role between Tirs contre and Engagements', async () => {
+    const d = makeDeps({ games: [gameFx()] });
+    renderWithSync(<RecordScreen code="AB23" />, d.deps);
+    await screen.findByText(t.setup.chooseRole);
+    const roleNames = Object.values(t.roles) as string[];
+    const shown = screen.getAllByRole('button').map((b) => b.textContent ?? '').filter((n) => roleNames.includes(n));
+    expect(shown).toEqual([t.roles.shots_for, t.roles.shots_against, t.roles.turnovers, t.roles.faceoffs, t.roles.all]);
   });
 });
 

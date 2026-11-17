@@ -4,7 +4,7 @@ Web app to record inline hockey shots and faceoffs on several tablets at once, m
 
 - App: https://trophy8726.github.io/roller-stats/
 - Dev: `npm install`, `npm run dev`, `npm test`
-- Databases: production Supabase `ibgyycalrtnwtfmlzrwk` (`.env`), staging (`.env.development`, used by `npm run dev`). Schema: `supabase/schema.sql` (v1), then `supabase/migration-v2.sql`, then `supabase/migration-v3a.sql`. `npm run smoke` checks the access rules **on staging only** (needs `.env.smoke.local`, see `scripts/smoke.mjs`). On a network where Node times out on the first address, run it as `node --dns-result-order=ipv4first --network-family-autoselection-attempt-timeout=2000 scripts/smoke.mjs`.
+- Databases: production Supabase `ibgyycalrtnwtfmlzrwk` (`.env`), staging (`.env.development`, used by `npm run dev`). Schema: `supabase/schema.sql` (v1), then `supabase/migration-v2.sql`, then `supabase/migration-v3a.sql`, then `supabase/migration-v3b.sql`. `npm run smoke` checks the access rules **on staging only** (needs `.env.smoke.local`, see `scripts/smoke.mjs`). On a network where Node times out on the first address, run it as `node --dns-result-order=ipv4first --network-family-autoselection-attempt-timeout=2000 scripts/smoke.mjs`.
 - Free Supabase projects pause after 7 days without activity: supabase.com → project → Restore.
 - Deploys automatically on every push to `main` (GitHub Actions → Pages).
 
@@ -34,3 +34,20 @@ Spec: `docs/superpowers/specs/2026-10-15-roller-stats-v3-phase1-design.md`. Plan
 4. Open the app, sign in with Google. Then in the SQL Editor run `supabase/claim-v3a.sql` with your Google address on the marked line (it only claims the clubs that still have no member). Reload the app: both clubs appear.
 5. Aix-en-Provence volunteers: in the app, pick Aix-en-Provence → Club tab → copy the invitation link → send it to the Aix volunteers before they open the app, so they join the existing club instead of creating one.
 6. Maisons-Laffitte hand-over: Club tab → copy the invitation link → send it to the future Responsable → once they have joined, « Nommer responsable » → « Quitter le club ».
+
+## Version 3 — turnovers
+
+A « Turnover » tab (between Tir contre and Engagement) and a « Turnover » tablet role record where the team loses and recovers the puck; the game and season reports show the dots.
+
+Définition : un turnover est un changement de possession **pendant le jeu**. **Perdu** : nous avions le palet, l'adversaire le prend. **Récupéré** : l'adversaire avait le palet, nous le prenons. Jamais un turnover, dans un sens comme dans l'autre : les tirs et leurs rebonds, les engagements, les envois en fond de zone, les dégagements, les arrêts de jeu.
+
+Spec: `docs/superpowers/specs/2026-11-17-turnovers-design.md`. Plan: `docs/superpowers/plans/2026-11-17-turnovers.md`.
+
+### Release order
+
+1. The v3 production cut-over above is done.
+2. Staging first: run `supabase/migration-v3b.sql` there, then `npm run smoke`: every line must say `OK`, including the three turnover checks.
+3. SQL Editor (production): run `supabase/migration-v3b.sql`.
+4. Only then merge `feat/turnovers` into `main` and push. Deployed before the migration, the app would send turnovers the database refuses, and a refused entry holds back every later entry of that tablet.
+
+A tablet still running the previous version can show turnovers on its shot map until the app reloads.

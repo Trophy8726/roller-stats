@@ -86,6 +86,12 @@ const spoofed = row({ created_by: bId });
 r = await a.from('events').insert(spoofed);
 r = await a.from('events').select('created_by').eq('id', spoofed.id).single();
 check('a client cannot choose created_by', r.data?.created_by === aId, JSON.stringify(r.data));
+r = await a.from('events').insert(row({ kind: 'turnover', result: 'recovered', device_role: 'turnovers', x: 0.4, y: 0.3 }));
+check('member records a turnover', !r.error, r.error?.message);
+r = await a.from('events').insert(row({ kind: 'turnover', result: 'lost', x: null, y: null }));
+check('turnover without position refused (23514)', r.error?.code === '23514', r.error?.code);
+r = await a.from('events').insert(row({ kind: 'turnover', result: 'goal' }));
+check('turnover with a shot result refused (23514)', r.error?.code === '23514', r.error?.code);
 
 // ---- signed out -----------------------------------------------------------
 r = await anon.from('games').select('code').eq('code', code);

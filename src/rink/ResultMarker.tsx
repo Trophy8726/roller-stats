@@ -8,6 +8,7 @@ export const RESULT_COLOR: Record<MarkResult, string> = {
   blocked: '#B3B3B3',
   won: '#66C2A5',
   lost: '#FC8D62',
+  recovered: '#66C2A5',
 };
 const OUTLINE = '#1A1A1A';
 
@@ -37,6 +38,10 @@ export function ResultMarker({ cx, cy, result, size = 1 }: { cx: number; cy: num
       );
     case 'blocked':
       return <rect data-result="blocked" x={cx - 4.5 * size} y={cy - 4.5 * size} width={9 * size} height={9 * size} fill={c} stroke={OUTLINE} strokeWidth={1} />;
+    case 'recovered': {
+      const h = 5.5 * size;
+      return <polygon data-result="recovered" points={`${cx},${cy - h} ${cx + h},${cy + h * 0.8} ${cx - h},${cy + h * 0.8}`} fill={c} stroke={OUTLINE} strokeWidth={1} />;
+    }
     default:
       return <circle data-result={result} cx={cx} cy={cy} r={5 * size} fill={c} stroke={OUTLINE} strokeWidth={1} />;
   }

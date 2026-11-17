@@ -14,6 +14,7 @@ import { computeSeasonStats, type CompetitionFilter } from '../stats/season';
 import { StatCard } from '../ui/StatCard';
 import { useGoalies } from '../goalies/useGoalies';
 import { GoalieTable } from './report/GoalieTable';
+import { TurnoverCard } from './report/TurnoverCard';
 
 const COMPETITION_FILTERS: CompetitionFilter[] = ['championnat', 'coupe', 'playoffs', 'all'];
 const competitionLabel = (c: CompetitionFilter) => (c === 'all' ? t.season.allCompetitions : t.competitions[c]);
@@ -225,6 +226,14 @@ export function SeasonScreen() {
             />
             <Legend results={SHOT_RESULTS} />
           </section>
+
+          <TurnoverCard
+            events={data.events.filter((e) => includedCodes.has(e.game_code))}
+            title={t.season.turnovers}
+            leftLabel={t.report.us}
+            rightLabel={t.report.them}
+            periods={null}
+          />
         </>
       )}
     </main>

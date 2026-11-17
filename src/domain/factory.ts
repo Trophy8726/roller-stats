@@ -1,7 +1,7 @@
 import { INITIAL_MATCH_STATE, type MatchState } from './matchState';
 import type {
   DotId, FaceoffResult, GameEvent, Kind, OpenShotResult, OwnGoalKind, Period, Point, Role, ShootoutKind,
-  ShotKind, ShotResult, Strength,
+  ShotKind, ShotResult, Strength, TurnoverResult,
 } from './types';
 
 export interface EventContext {
@@ -72,6 +72,11 @@ export function makeShot(ctx: EventContext, kind: ShotKind, p: Point, result: Sh
 /** A penalty shot during play: no position on the rink. */
 export function makePenaltyShot(ctx: EventContext, kind: ShotKind, result: OpenShotResult): GameEvent {
   return build(ctx, kind, result, { penalty_shot: true });
+}
+
+/** A change of possession during play, at the place it happened. */
+export function makeTurnover(ctx: EventContext, p: Point, result: TurnoverResult): GameEvent {
+  return build(ctx, 'turnover', result, { x: round3(p.x), y: round3(p.y) });
 }
 
 export function makeFaceoff(ctx: EventContext, dot: DotId, result: FaceoffResult): GameEvent {

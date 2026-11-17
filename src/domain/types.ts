@@ -4,19 +4,21 @@ export type ShotKind = 'shot_for' | 'shot_against';
 export type OwnGoalKind = 'own_goal_for' | 'own_goal_against';
 export type ShootoutKind = 'shootout_for' | 'shootout_against';
 export type StateKind = 'state_our_goalie' | 'state_their_net' | 'state_strength';
-export type Kind = ShotKind | 'faceoff' | OwnGoalKind | ShootoutKind | 'note' | StateKind;
+export type Kind = ShotKind | 'turnover' | 'faceoff' | OwnGoalKind | ShootoutKind | 'note' | StateKind;
 export type ShotResult = 'goal' | 'save' | 'missed' | 'blocked';
 /** A penalty shot or a shootout attempt is aimed at the goalie: it cannot be blocked. */
 export type OpenShotResult = 'goal' | 'save' | 'missed';
 export type FaceoffResult = 'won' | 'lost';
+/** A change of possession during play: we lost the puck, or we got it back. */
+export type TurnoverResult = 'lost' | 'recovered';
 /** The results drawn as a coloured marker (Set2 colour + shape). */
-export type MarkResult = ShotResult | FaceoffResult;
+export type MarkResult = ShotResult | FaceoffResult | TurnoverResult;
 export type Strength = 'even' | 'pp' | 'pk';
 export type StateResult = 'goalie' | 'empty' | 'present' | Strength;
 export type EventResult = MarkResult | 'note' | StateResult;
 export type DotId = 'center' | 'off_top' | 'off_bottom' | 'def_top' | 'def_bottom';
 export type Zone = 'off' | 'neutral' | 'def';
-export type Role = 'shots_for' | 'shots_against' | 'faceoffs' | 'all';
+export type Role = 'shots_for' | 'shots_against' | 'turnovers' | 'faceoffs' | 'all';
 export type Competition = 'championnat' | 'coupe' | 'playoffs';
 export type Venue = 'home' | 'away' | 'neutral';
 export type SheetSide = 'home' | 'visitor';
@@ -24,6 +26,7 @@ export type SheetSide = 'home' | 'visitor';
 export const SHOT_RESULTS: readonly ShotResult[] = ['goal', 'save', 'missed', 'blocked'];
 export const OPEN_SHOT_RESULTS: readonly OpenShotResult[] = ['goal', 'save', 'missed'];
 export const FACEOFF_RESULTS: readonly FaceoffResult[] = ['won', 'lost'];
+export const TURNOVER_RESULTS: readonly TurnoverResult[] = ['lost', 'recovered'];
 /** Kinds aimed at our net: they belong to one of our goalies (unless the net was empty). */
 export const AGAINST_KINDS: readonly Kind[] = ['shot_against', 'own_goal_against', 'shootout_against'];
 
