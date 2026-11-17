@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { makeFaceoff, makeShot } from '../../domain/factory';
+import { makeFaceoff, makeShot, makeTurnover } from '../../domain/factory';
 import { computeMatchState } from '../../domain/matchState';
 import {
-  FACEOFF_RESULTS, SHOT_RESULTS, type DotId, type FaceoffResult, type Game, type Period, type Point, type Role, type ShotKind,
-  type ShotResult, type Side,
+  FACEOFF_RESULTS, SHOT_RESULTS, TURNOVER_RESULTS, type DotId, type FaceoffResult, type Game, type Period, type Point, type Role,
+  type MarkResult, type ShotKind, type ShotResult, type Side, type TurnoverResult,
 } from '../../domain/types';
 import { useGameEvents } from '../../events/useGameEvents';
 import { useGoalies } from '../../goalies/useGoalies';
@@ -19,12 +19,13 @@ import { MiscPanel } from './MiscPanel';
 import { SidePrompt } from './SidePrompt';
 import { StateBanner } from './StateBanner';
 
-type Mode = ShotKind | 'faceoff' | 'misc';
-const ALL_MODES: Mode[] = ['shot_for', 'shot_against', 'faceoff', 'misc'];
+type Mode = ShotKind | 'turnover' | 'faceoff' | 'misc';
+const ALL_MODES: Mode[] = ['shot_for', 'shot_against', 'turnover', 'faceoff', 'misc'];
 const modeLabel = (m: Mode) => (m === 'misc' ? t.misc.tab : t.modes[m]);
 
 export function initialMode(role: Role): Mode {
   if (role === 'shots_against') return 'shot_against';
+  if (role === 'turnovers') return 'turnover';
   if (role === 'faceoffs') return 'faceoff';
   return 'shot_for';
 }
@@ -72,6 +73,8 @@ export function Recorder({ game, setup, onSetupChange }: { game: Game; setup: Re
   // Period 3 without a known side (saved that way, or the setup was rebuilt): mandatory prompt, never assume the P1 side.
   const needOvertimeSide = setup.period === 3 && !setup.defendOT;
   const shotMode = mode === 'shot_for' || mode === 'shot_against' ? mode : null;
+  // The kinds drawn on the rink of the current tab: shots and turnovers are tapped where they happened.
+  const tapKind = shotMode ?? (mode === 'turnover' ? 'turnover' : null);
 
   function changeMode(m: Mode) {
     clear();
@@ -100,6 +103,12 @@ export function Recorder({ game, setup, onSetupChange }: { game: Game; setup: Re
     clear();
     record(makeShot(ctx, shotMode, p, r));
   }
+  function pickTurnover(r: TurnoverResult) {
+    const p = tapRef.current;
+    if (!p || mode !== 'turnover') return;
+    clear();
+    record(makeTurnover(ctx, p, r));
+  }
   function pickFaceoff(r: FaceoffResult) {
     const d = dotRef.current;
     if (!d) return;
@@ -108,10 +117,10 @@ export function Recorder({ game, setup, onSetupChange }: { game: Game; setup: Re
   }
 
   const live = events.filter((e) => !e.deleted_at);
-  const markers = shotMode
+  const markers = tapKind
     ? live
-        .filter((e) => e.kind === shotMode && e.period === setup.period && e.x !== null && e.y !== null)
-        .map((e) => ({ id: e.id, x: e.x as number, y: e.y as number, result: e.result as ShotResult }))
+        .filter((e) => e.kind === tapKind && e.period === setup.period && e.x !== null && e.y !== null)
+        .map((e) => ({ id: e.id, x: e.x as number, y: e.y as number, result: e.result as MarkResult }))
     : [];
   const mine = live.filter((e) => e.mine);
   const lastTen = mine.slice(-10).reverse();
@@ -167,11 +176,12 @@ export function Recorder({ game, setup, onSetupChange }: { game: Game; setup: Re
                 onTap={mode === 'faceoff' ? undefined : setTap}
                 onDotTap={mode === 'faceoff' ? setDot : undefined}
               />
-              {mode !== 'faceoff' && tap && <ResultButtons results={SHOT_RESULTS} onPick={pickShot} onCancel={clear} />}
+              {shotMode && tap && <ResultButtons results={SHOT_RESULTS} onPick={pickShot} onCancel={clear} />}
+              {mode === 'turnover' && tap && <ResultButtons results={TURNOVER_RESULTS} onPick={pickTurnover} onCancel={clear} />}
               {mode === 'faceoff' && dot && <ResultButtons results={FACEOFF_RESULTS} onPick={pickFaceoff} onCancel={clear} />}
               {!tap && !dot && (
                 <div className="actionbar">
-                  <div className="actionbar__hint">{mode === 'faceoff' ? t.record.tapDot : t.record.tapShot}</div>
+                  <div className="actionbar__hint">{mode === 'faceoff' ? t.record.tapDot : mode === 'turnover' ? t.record.tapTurnover : t.record.tapShot}</div>
                 </div>
               )}
             </>

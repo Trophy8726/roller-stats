@@ -5,7 +5,7 @@ import { attacksRight, endLabels } from '../../rink/coords';
 import { Rink } from '../../rink/Rink';
 import type { RecordSetup } from '../../settings';
 
-const ROLES: Role[] = ['shots_for', 'shots_against', 'faceoffs', 'all'];
+const ROLES: Role[] = ['shots_for', 'shots_against', 'turnovers', 'faceoffs', 'all'];
 const SIDES: Side[] = ['left', 'right'];
 
 /** `initial`: the setup being changed mid-game. Its role and side are pre-selected and its period is kept. */
