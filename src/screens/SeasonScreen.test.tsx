@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { t } from '../i18n/fr';
-import { gameFx, shotEv, stateEv } from '../test/builders';
+import { gameFx, shotEv, stateEv, turnoverEv } from '../test/builders';
 import { makeDeps, renderWithSync } from '../test/fakes';
 import { SeasonScreen } from './SeasonScreen';
 
@@ -43,6 +43,25 @@ describe('SeasonScreen', () => {
     expect(count()).toBe(3);
     fireEvent.click(screen.getByRole('checkbox', { name: /Rouen/ }));
     expect(count()).toBe(1);
+  });
+
+  it('shows the turnovers of the selected games only', async () => {
+    const d = makeDeps({
+      games: [gameFx({ code: 'AAAA', opponent: 'Rouen', game_date: '2026-09-20' }), gameFx({ code: 'BBBB', opponent: 'Caen', game_date: '2026-09-27' })],
+    });
+    [
+      shotEv('shot_for', 'goal', { game_code: 'AAAA' }),
+      turnoverEv('lost', { game_code: 'AAAA' }),
+      turnoverEv('recovered', { game_code: 'AAAA' }),
+      turnoverEv('lost', { game_code: 'BBBB' }),
+    ].forEach((e) => d.fr.rows.set(e.id, e));
+    renderWithSync(<SeasonScreen />, d.deps);
+    const card = async () => (await screen.findByRole('heading', { name: t.season.turnovers })).closest('section') as HTMLElement;
+    await waitFor(async () => expect((await card()).querySelectorAll('svg.rink [data-result]')).toHaveLength(3));
+    expect(within(await card()).getByText(`${t.results.lost} · 2`)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('checkbox', { name: /Rouen/ }));
+    expect((await card()).querySelectorAll('svg.rink [data-result]')).toHaveLength(1);
+    expect(within(await card()).queryByRole('button', { name: 'P1' })).toBeNull();
   });
 
   const gamesCard = () => screen.getByText(t.season.games, { selector: 'span' }).nextElementSibling?.textContent;

@@ -21,6 +21,7 @@ import { FaceoffTable } from './FaceoffTable';
 import { GoalieTable } from './GoalieTable';
 import { LevelsTable } from './LevelsTable';
 import { StrengthTable } from './StrengthTable';
+import { TurnoverCard } from './TurnoverCard';
 
 const SIDE_FILTERS: SideFilter[] = ['both', 'for', 'against'];
 const sideLabel = (s: SideFilter) => (s === 'both' ? t.report.both : s === 'for' ? t.report.for : t.report.against);
@@ -157,6 +158,8 @@ function Report({ game }: { game: Game }) {
         <Rink attackRight leftLabel={game.team_name} rightLabel={game.opponent} markers={filterShotMarkers(events, period, side)} />
         <Legend results={SHOT_RESULTS} />
       </section>
+
+      <TurnoverCard events={events} title={t.report.turnovers} leftLabel={game.team_name} rightLabel={game.opponent} periods={periodFilters} />
 
       <section className="card stack">
         <h2>{t.report.faceoffs}</h2>

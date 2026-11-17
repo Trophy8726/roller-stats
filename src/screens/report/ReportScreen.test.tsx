@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import type { Game, GameEvent, Goalie } from '../../domain/types';
 import { t } from '../../i18n/fr';
-import { faceoffEv, gameFx, noteEv, ownGoalEv, penaltyEv, shootoutEv, shotEv } from '../../test/builders';
+import { faceoffEv, gameFx, noteEv, ownGoalEv, penaltyEv, shootoutEv, shotEv, turnoverEv } from '../../test/builders';
 import { makeDeps, renderWithSync } from '../../test/fakes';
 import { ReportScreen } from './ReportScreen';
 
@@ -165,17 +165,19 @@ describe('report v2', () => {
   });
 
   it('prints the map filter under the map title only when a filter is active', async () => {
-    const { container } = renderReportWith([shotEv('shot_for', 'goal'), shotEv('shot_against', 'save', { period: 2 })]);
+    renderReportWith([shotEv('shot_for', 'goal'), shotEv('shot_against', 'save', { period: 2 })]);
     await screen.findByText('1 – 0');
-    const caption = () => container.querySelector('p.print-only');
+    // Scoped to the shot map card: the turnover card has its own period filter and caption.
+    const shotMap = () => screen.getByRole('heading', { name: t.report.shotMap }).closest('section') as HTMLElement;
+    const caption = () => shotMap().querySelector('p.print-only');
     expect(caption()).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: t.report.for }));
     expect(caption()).toHaveTextContent(t.report.mapFilterCaption(t.report.allPeriods, t.report.for));
-    fireEvent.click(within(screen.getByRole('group', { name: t.record.periodLabel })).getByRole('button', { name: t.record.period(1) }));
+    fireEvent.click(within(within(shotMap()).getByRole('group', { name: t.record.periodLabel })).getByRole('button', { name: t.record.period(1) }));
     expect(caption()).toHaveTextContent(t.report.mapFilterCaption(t.record.period(1), t.report.for));
-    fireEvent.click(screen.getByRole('button', { name: t.report.both }));
+    fireEvent.click(within(shotMap()).getByRole('button', { name: t.report.both }));
     expect(caption()).toHaveTextContent(t.report.mapFilterCaption(t.record.period(1), t.report.both));
-    fireEvent.click(within(screen.getByRole('group', { name: t.record.periodLabel })).getByRole('button', { name: t.report.allPeriods }));
+    fireEvent.click(within(within(shotMap()).getByRole('group', { name: t.record.periodLabel })).getByRole('button', { name: t.report.allPeriods }));
     expect(caption()).toBeNull();
   });
 
@@ -186,5 +188,46 @@ describe('report v2', () => {
     fireEvent.click(await screen.findByRole('button', { name: t.report.exportPdf }));
     expect(print).toHaveBeenCalledTimes(1);
     expect(document.title).toContain(t.report.title);
+  });
+});
+
+describe('turnovers on the report', () => {
+  beforeEach(() => localStorage.clear());
+  const card = () => screen.getByRole('heading', { name: t.report.turnovers }).closest('section') as HTMLElement;
+  const dots = () => card().querySelectorAll('svg.rink [data-result]').length;
+  const events = () => [
+    turnoverEv('lost'),
+    turnoverEv('lost', { x: 0.8 }),
+    turnoverEv('recovered', { period: 2 }),
+    turnoverEv('recovered', { deleted_at: '2026-11-01T20:00:00Z' }),
+    shotEv('shot_for', 'goal'),
+  ];
+
+  it('shows the live turnovers with their counts, and keeps them off the shot map', async () => {
+    const { container } = renderReportWith(events());
+    await waitFor(() => expect(dots()).toBe(3));
+    expect(within(card()).getByText(`${t.results.lost} · 2`)).toBeInTheDocument();
+    expect(within(card()).getByText(`${t.results.recovered} · 1`)).toBeInTheDocument();
+    const shotMap = screen.getByRole('heading', { name: t.report.shotMap }).closest('section') as HTMLElement;
+    expect(shotMap.querySelectorAll('svg.rink [data-result]')).toHaveLength(1);
+    expect(container.querySelectorAll('[data-result="recovered"]').length).toBeGreaterThan(0);
+  });
+
+  it('filters by result and by period', async () => {
+    renderReportWith(events());
+    await waitFor(() => expect(dots()).toBe(3));
+    fireEvent.click(within(card()).getByRole('button', { name: t.report.lost }));
+    expect(dots()).toBe(2);
+    expect(within(card()).getByText(`${t.results.recovered} · 0`)).toBeInTheDocument();
+    fireEvent.click(within(card()).getByRole('button', { name: t.report.both }));
+    fireEvent.click(within(card()).getByRole('button', { name: 'P2' }));
+    expect(dots()).toBe(1);
+  });
+
+  it('keeps the card, at zero, for a game without turnovers', async () => {
+    renderReportWith([shotEv('shot_for', 'goal')]);
+    await screen.findByRole('heading', { name: t.report.turnovers });
+    expect(within(card()).getByText(`${t.results.lost} · 0`)).toBeInTheDocument();
+    expect(within(card()).getByText(`${t.results.recovered} · 0`)).toBeInTheDocument();
   });
 });
