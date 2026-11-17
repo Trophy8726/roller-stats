@@ -1,10 +1,15 @@
 import { t } from '../../i18n/fr';
-import { noteEv, ownGoalEv, penaltyEv, shotEv, stateEv } from '../../test/builders';
+import { noteEv, ownGoalEv, penaltyEv, shotEv, stateEv, turnoverEv } from '../../test/builders';
 import { describeEvent } from './describe';
 
 const names = new Map([['g1', 'François Mallet']]);
 
 describe('describeEvent', () => {
+  it('describes a turnover with its period and result', () => {
+    expect(describeEvent(turnoverEv('lost', { period: 2 }), names)).toBe('P2 · Turnover · Perdu');
+    expect(describeEvent(turnoverEv('recovered'), names)).toBe('P1 · Turnover · Récupéré');
+  });
+
   it('describes a shot with its period, side and result', () => {
     expect(describeEvent(shotEv('shot_against', 'save'), names)).toBe('P1 · Tir contre · Arrêt');
   });

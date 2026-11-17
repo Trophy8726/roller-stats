@@ -1,6 +1,6 @@
 import {
   makeFaceoff, makeGoalieState, makeNote, makeOwnGoal, makePenaltyShot, makeShootout, makeShot,
-  makeStrengthState, makeTheirNetState, toRow, uuid,
+  makeStrengthState, makeTheirNetState, makeTurnover, toRow, uuid,
 } from './factory';
 import type { MatchState } from './matchState';
 
@@ -111,5 +111,19 @@ describe('toRow', () => {
     const legacy = { ...makeShot(ctx, 'shot_for', { x: 0.5, y: 0.5 }, 'save') } as Record<string, unknown>;
     for (const k of ['goalie_id', 'empty_net', 'strength', 'penalty_shot', 'note']) delete legacy[k];
     expect(toRow(legacy as never)).toMatchObject({ goalie_id: null, empty_net: false, strength: 'even', penalty_shot: false, note: null });
+  });
+});
+
+describe('makeTurnover', () => {
+  it('keeps the rounded position and no goalie', () => {
+    const e = makeTurnover({ code: 'AB23', period: 2, role: 'turnovers' }, { x: 0.12345, y: 0.6789 }, 'recovered');
+    expect(e).toMatchObject({
+      kind: 'turnover', result: 'recovered', period: 2, x: 0.123, y: 0.679, dot: null,
+      goalie_id: null, empty_net: false, penalty_shot: false, device_role: 'turnovers',
+    });
+  });
+  it('carries the strength but never a goalie, even with our goalie in net', () => {
+    const e = makeTurnover({ ...ctx, state: state({ strength: 'pp' }) }, { x: 0.2, y: 0.3 }, 'lost');
+    expect(e).toMatchObject({ strength: 'pp', goalie_id: null, empty_net: false });
   });
 });
