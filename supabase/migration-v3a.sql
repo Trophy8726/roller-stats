@@ -93,9 +93,16 @@ do $$
 declare
   aix uuid; ml uuid; aix_team uuid; ml_team uuid; stray text;
 begin
-  select string_agg(code, ', ') into stray from public.games where code not in ('9MKH', 'B9NG', 'QSFA');
+  select string_agg(code, ', ') into stray from public.games where code not in ('9MKH', 'B9NG', 'QSFA', 'YC86');
   if stray is not null then
     raise exception 'Games not covered by this migration: %. Decide their club, then edit the script.', stray;
+  end if;
+  -- Tom Leray (b92a21be…) plays for Maisons-Laffitte; every other goalie is listed here for Aix.
+  select string_agg(name, ', ') into stray from public.goalies where id not in (
+    '8f034619-968e-422d-bb81-2c3b8ce56486', '7d7d02eb-7ab9-4745-9bbd-b991969f5519',
+    '62ea5dc0-2e61-41e6-9aa4-1679de15e297', 'b92a21be-ddd9-4f0a-940d-37b5e562314d');
+  if stray is not null then
+    raise exception 'Goalies not covered by this migration: %. Decide their club, then edit the script.', stray;
   end if;
   insert into public.clubs (name) values ('Aix-en-Provence') returning id into aix;
   insert into public.clubs (name) values ('Maisons-Laffitte') returning id into ml;
@@ -103,8 +110,9 @@ begin
   insert into public.teams (club_id, name) values (ml, 'U20') returning id into ml_team;
   insert into public.club_invites (club_id, token) values (aix, public.new_invite_token()), (ml, public.new_invite_token());
   update public.games set club_id = aix, team_id = aix_team where code in ('9MKH', 'B9NG');
-  update public.games set club_id = ml, team_id = ml_team where code = 'QSFA';
-  update public.goalies set club_id = aix;
+  update public.games set club_id = ml, team_id = ml_team where code in ('QSFA', 'YC86');
+  update public.goalies set club_id = ml where id = 'b92a21be-ddd9-4f0a-940d-37b5e562314d';
+  update public.goalies set club_id = aix where club_id is null;
 end $$;
 
 alter table public.games alter column club_id set not null, alter column team_id set not null;
